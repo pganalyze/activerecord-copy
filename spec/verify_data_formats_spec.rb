@@ -2,7 +2,7 @@ require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
 describe "generating data" do
   it 'should encode hstore data correctly' do
-    encoder = PgDataEncoder::CopyBinary.new
+    encoder = PgDataEncoder::EncodeForCopy.new
     encoder.add [1, "text", {a: 1, b: "asdf"}]
     encoder.close
     io = encoder.get_io
@@ -15,7 +15,7 @@ describe "generating data" do
   end
 
   it 'should encode hstore data correctly from tempfile' do
-    encoder = PgDataEncoder::CopyBinary.new(:use_tempfile => true)
+    encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
     encoder.add [1, "text", {a: 1, b: "asdf"}]
     encoder.close
     io = encoder.get_io

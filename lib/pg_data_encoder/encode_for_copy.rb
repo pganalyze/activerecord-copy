@@ -1,7 +1,7 @@
 require 'tempfile'
 require 'stringio'
 module PgDataEncoder
-  class CopyBinary
+  class EncodeForCopy
     def initialize(options = {})
       @options = options
       @closed = false
@@ -31,7 +31,7 @@ module PgDataEncoder
     end
 
     def remove
-      if @io.kind_of?(TempFile)
+      if @io.kind_of?(Tempfile)
         @io.close
         @io.unlink
       end
@@ -41,7 +41,7 @@ module PgDataEncoder
 
     def setup_io
       if @options[:use_tempfile] == true
-        @io = Tempfile.new("copy_binary")
+        @io = Tempfile.new("copy_binary", :encoding => 'ascii-8bit')
         @io.unlink
       else
         @io = StringIO.new
