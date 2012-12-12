@@ -52,8 +52,7 @@ For large imports you can use the use_tempfile => true option to enable Tempfile
 ## Notes
 
 
-* Columns must line up on the incoming table.   if they don't you need to filter the copy to not need them
-
+Columns must line up on the incoming table.   if they don't you need to filter the copy to not need them
 
     COPY table_name FROM STDIN BINARY
 
