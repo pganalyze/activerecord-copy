@@ -17,7 +17,9 @@ With it you can make a bulk insert like this
 With a fairly complicated table that includes an index and an hstore + index.
 I can get 1600 inserts/sec on my overworked macbook pro.
 
-Your usage may vary
+## Try it out yourself,   in the examples folder there is a simple test
+
+on my i3 box with an ssd drive I can get 270,000 inserts a second
 
 NOTE: Only a few of the many data types are supported.  check below for more details
 
@@ -59,7 +61,6 @@ Columns must line up on the incoming table.   if they don't you need to filter t
 or
 
     COPY table_name(field1, field2) FROM STDIN BINARY
-
 
 
 
