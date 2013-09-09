@@ -14,12 +14,9 @@ With it you can make a bulk insert like this
 
     Product.pg_copy_from(encoder.get_io, :format => :binary, :columns => [:id, :name, :desc])
 
-With a fairly complicated table that includes an index and an hstore + index.
-I can get 1600 inserts/sec on my overworked macbook pro.
-
 ## Try it out yourself,   in the examples folder there is a simple test
 
-on my i3 box with an ssd drive I can get 270,000 inserts a second
+on my i3 box with an ssd drive I can get 270,000 inserts a second with an hstore and indexes
 
 NOTE: Only a few of the many data types are supported.  check below for more details
 
@@ -66,9 +63,8 @@ or
 
 ## Added type support
 
-  Currently it supports Integers, Strings, Hstore.
+  Currently it supports Integers, Strings, Hstore, Floats (double precision), Timestamp.
 
-  Help would be appreciated for DateTime, Float, Double, ...
 ## Contributing
 
 
