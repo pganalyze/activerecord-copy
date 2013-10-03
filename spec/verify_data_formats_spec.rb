@@ -27,6 +27,29 @@ describe "generating data" do
     str.should == existing_data
   end
 
+  it 'should encode array data correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [1, "hello", ["hi", "jim"]]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("array_with_two.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
+  it 'should encode array data from tempfile correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
+    encoder.add [1, "hi", ["hi", "there", "rubyist"]]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("3_column_array.dat")
+    str = io.read
+    io.class.name.should == "Tempfile"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
 
   it 'should encode timestamp data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new

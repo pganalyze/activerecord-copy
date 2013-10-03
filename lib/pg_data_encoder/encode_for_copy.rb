@@ -66,6 +66,23 @@ module PgDataEncoder
         buf = field.encode("UTF-8")
         io.write([buf.bytesize].pack("N"))
         io.write(buf)
+      when Array
+        # Some kind of identifier seems to go here??
+        # It starts with a special char and then the same exact pattern:
+        # IE: \x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x19
+        # In some cases I've seen period, in others !s
+        #
+        # It also apears that the length of the array _might_ be in two different places??
+        # Immediately after the possible identifier you have:
+        # \x00\x00\x00\x03
+        # 3 being the length of the array. For an array with two element that would be 2 instead.
+        #
+        io.write([field.size].pack("N"))
+        field.each {|val|
+          buf = val.to_s.encode("UTF-8")
+          io.write([buf.bytesize].pack("N"))
+          io.write(buf)
+        }
       when Hash
         raise Exception.new("Hash's can't contain hashes") if depth > 0
         hash_io = StringIO.new
