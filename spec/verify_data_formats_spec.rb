@@ -51,6 +51,18 @@ describe "generating data" do
     str.should == existing_data
   end
 
+  it 'should encode integer array data from tempfile correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
+    encoder.add [[1,2,3]]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("intarray.dat")
+    str = io.read
+    io.class.name.should == "Tempfile"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
   it 'should encode timestamp data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
     encoder.add [Time.parse("2013-06-11 15:03:54.62605 UTC")]

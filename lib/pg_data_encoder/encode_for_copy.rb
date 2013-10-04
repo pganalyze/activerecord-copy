@@ -67,22 +67,44 @@ module PgDataEncoder
         io.write([buf.bytesize].pack("N"))
         io.write(buf)
       when Array
-        # Some kind of identifier seems to go here??
-        # It starts with a special char and then the same exact pattern:
-        # IE: \x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x19
-        # In some cases I've seen period, in others !s
-        #
-        # It also apears that the length of the array _might_ be in two different places??
-        # Immediately after the possible identifier you have:
-        # \x00\x00\x00\x03
-        # 3 being the length of the array. For an array with two element that would be 2 instead.
-        #
-        io.write([field.size].pack("N"))
-        field.each {|val|
-          buf = val.to_s.encode("UTF-8")
-          io.write([buf.bytesize].pack("N"))
-          io.write(buf)
-        }
+        array_io = StringIO.new
+        case field[0]
+        when String
+          array_io.write([1].pack("N"))  # unknown
+          array_io.write([0].pack("N"))  # unknown
+
+          array_io.write([25].pack("N"))  # I think is used to determine string data type
+          array_io.write([field.size].pack("N"))
+          array_io.write([1].pack("N"))   # forcing single dimention array for now
+          
+          field.each_with_index {|val, index|
+            buf = val.to_s.encode("UTF-8")
+            array_io.write([buf.bytesize].pack("N"))
+            array_io.write(buf)
+            
+          }
+        when Integer
+          array_io.write([1].pack("N"))  # unknown
+          array_io.write([0].pack("N"))  # unknown
+
+          array_io.write([23].pack("N"))  # I think is used to detemine int data type
+          array_io.write([field.size].pack("N"))
+          array_io.write([1].pack("N"))   # forcing single dimention array for now
+          
+          field.each_with_index {|val, index|
+            buf = [val.to_i].pack("N")
+            array_io.write([buf.bytesize].pack("N"))
+            array_io.write(buf)
+            
+          }
+        else
+          raise Exception.new("Arrays support int or string only")
+        end
+
+        io.write([array_io.pos].pack("N"))
+        
+        
+        io.write(array_io.string)
       when Hash
         raise Exception.new("Hash's can't contain hashes") if depth > 0
         hash_io = StringIO.new
