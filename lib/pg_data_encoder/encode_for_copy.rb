@@ -75,7 +75,7 @@ module PgDataEncoder
 
           array_io.write([25].pack("N"))  # I think is used to determine string data type
           array_io.write([field.size].pack("N"))
-          array_io.write([1].pack("N"))   # forcing single dimention array for now
+          array_io.write([1].pack("N"))   # forcing single dimension array for now
           
           field.each_with_index {|val, index|
             buf = val.to_s.encode("UTF-8")
@@ -89,7 +89,7 @@ module PgDataEncoder
 
           array_io.write([23].pack("N"))  # I think is used to detemine int data type
           array_io.write([field.size].pack("N"))
-          array_io.write([1].pack("N"))   # forcing single dimention array for now
+          array_io.write([1].pack("N"))   # forcing single dimension array for now
           
           field.each_with_index {|val, index|
             buf = [val.to_i].pack("N")

@@ -63,7 +63,7 @@ or
 
 ## Added type support
 
-  Currently it supports Integers, Strings, Hstore, Floats (double precision), Timestamp.
+  Currently it supports Integers, Strings, Hstore, Floats (double precision), Timestamp, Array (integer and string single dimension)
 
 ## Contributing
 
