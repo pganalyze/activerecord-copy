@@ -73,7 +73,7 @@ module PgDataEncoder
           array_io.write([1].pack("N"))  # unknown
           array_io.write([0].pack("N"))  # unknown
 
-          array_io.write([25].pack("N"))  # I think is used to determine string data type
+          array_io.write([1043].pack("N"))  # I think is used to determine string data type
           array_io.write([field.size].pack("N"))
           array_io.write([1].pack("N"))   # forcing single dimension array for now
           

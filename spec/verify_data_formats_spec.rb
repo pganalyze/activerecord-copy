@@ -29,27 +29,63 @@ describe "generating data" do
 
   it 'should encode array data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
-    encoder.add [1, "hello", ["hi", "jim"]]
+    encoder.add [["hi", "jim"]]
     encoder.close
     io = encoder.get_io
-    existing_data = filedata("array_with_two.dat")
+    existing_data = filedata("array_with_two2.dat")
     str = io.read
     io.class.name.should == "StringIO"
     str.force_encoding("ASCII-8BIT")
     str.should == existing_data
   end
 
-  it 'should encode array data from tempfile correctly' do
-    encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
-    encoder.add [1, "hi", ["hi", "there", "rubyist"]]
+  it 'should encode string array data correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [['asdfasdfasdfasdf', 'asdfasdfasdfasdfadsfadf', '1123423423423']]
     encoder.close
     io = encoder.get_io
-    existing_data = filedata("3_column_array.dat")
+    existing_data = filedata("big_str_array.dat")
     str = io.read
-    io.class.name.should == "Tempfile"
+    io.class.name.should == "StringIO"
     str.force_encoding("ASCII-8BIT")
     str.should == existing_data
   end
+
+  it 'should encode string array with big string int' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [["182749082739172"]]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("just_an_array2.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
+  it 'should encode string array data correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [['asdfasdfasdfasdf', 'asdfasdfasdfasdfadsfadf']]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("big_str_array2.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
+  #it 'should encode array data from tempfile correctly' do
+  #  encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
+  #  encoder.add [1, "hi", ["hi", "there", "rubyist"]]
+  #  encoder.close
+  #  io = encoder.get_io
+  #  existing_data = filedata("3_column_array.dat")
+  #  str = io.read
+  #  io.class.name.should == "Tempfile"
+  #  str.force_encoding("ASCII-8BIT")
+  #  str.should == existing_data
+  #end
 
   it 'should encode integer array data from tempfile correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
