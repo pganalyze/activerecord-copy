@@ -27,6 +27,30 @@ describe "generating data" do
     str.should == existing_data
   end
 
+  it 'should encode TrueClass data correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [true]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("trueclass.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
+  it 'should encode FalseClass data correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [false]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("falseclass.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
   it 'should encode array data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
     encoder.add [["hi", "jim"]]

@@ -60,6 +60,14 @@ module PgDataEncoder
         buf = [field].pack("G")
         io.write([buf.bytesize].pack("N"))
         io.write(buf)
+      when true
+        buf = [1].pack("C")
+        io.write([1].pack("N"))
+        io.write(buf)
+      when false
+        buf = [0].pack("C")
+        io.write([1].pack("N"))
+        io.write(buf)
       when nil
         io.write([-1].pack("N"))
       when String
