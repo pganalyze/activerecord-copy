@@ -19,7 +19,7 @@ module PgDataEncoder
 
     def close
       @closed = true
-      @io.write([-1].pack("n"))
+      @io.write([-1].pack("n")) rescue raise Exception.new("No rows have been added to the encoder!")
       @io.rewind
     end
 
