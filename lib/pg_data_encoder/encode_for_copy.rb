@@ -1,7 +1,8 @@
 require 'tempfile'
 require 'stringio'
 module PgDataEncoder
-  POSTGRES_EPOCH_DATE = (Time.utc(2000,1,1).to_f * 1_000_000).to_i
+  POSTGRES_EPOCH_TIME = (Time.utc(2000,1,1).to_f * 1_000_000).to_i
+
   class EncodeForCopy
     def initialize(options = {})
       @options = options
@@ -127,7 +128,11 @@ module PgDataEncoder
         io.write([hash_io.pos].pack("N"))  # assumed identifier for hstore column
         io.write(hash_io.string)
       when Time
-        buf = [(field.to_f * 1_000_000 - POSTGRES_EPOCH_DATE).to_i].pack("L!>")
+        buf = [(field.to_f * 1_000_000 - POSTGRES_EPOCH_TIME).to_i].pack("L!>")
+        io.write([buf.bytesize].pack("N"))
+        io.write(buf)
+      when Date
+        p buf = [((field.to_time ).to_f * 1_000_000  - POSTGRES_EPOCH_TIME).to_i].pack("N")
         io.write([buf.bytesize].pack("N"))
         io.write(buf)
       else

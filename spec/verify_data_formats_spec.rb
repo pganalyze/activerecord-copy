@@ -123,6 +123,42 @@ describe "generating data" do
     str.should == existing_data
   end
 
+  it 'should encode date data correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [Date.parse("1900-12-03")]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("date.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
+  it 'should encode date data correctly for years > 2000' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [Date.parse("2033-01-12")]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("date2000.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
+  it 'should encode date data correctly in the 70s' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [Date.parse("1971-12-11")]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("date2.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
   it 'should encode timestamp data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
     encoder.add [Time.parse("2013-06-11 15:03:54.62605 UTC")]
