@@ -71,6 +71,7 @@ or
   * Boolean
   * Floats (double precision)
   * Timestamp
+  * Date
   * Array (integer and string single dimension)
 
 ## Contributing

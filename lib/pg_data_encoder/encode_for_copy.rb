@@ -132,7 +132,7 @@ module PgDataEncoder
         io.write([buf.bytesize].pack("N"))
         io.write(buf)
       when Date
-        p buf = [((field.to_time ).to_f * 1_000_000  - POSTGRES_EPOCH_TIME).to_i].pack("N")
+        buf = [(field - Date.new(2000,1,1)).to_i].pack("N")
         io.write([buf.bytesize].pack("N"))
         io.write(buf)
       else
