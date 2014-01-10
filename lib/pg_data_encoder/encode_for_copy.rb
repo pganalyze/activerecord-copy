@@ -43,7 +43,9 @@ module PgDataEncoder
     def setup_io
       if @options[:use_tempfile] == true
         @io = Tempfile.new("copy_binary", :encoding => 'ascii-8bit')
-        @io.unlink
+        unless @options[:skip_unlink] == true
+          @io.unlink
+        end
       else
         @io = StringIO.new
       end
