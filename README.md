@@ -73,7 +73,7 @@ or
   * Timestamp
   * Date
   * Array (integer and string single dimension)
-  * UUID (through passing column_map: {0 => :uuid} to options hash)
+  * UUID (through passing column_types: {0 => :uuid} to options hash)
 
 ## Contributing
 
