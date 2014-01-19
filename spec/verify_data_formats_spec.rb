@@ -211,4 +211,17 @@ describe "generating data" do
     str.should == existing_data
   end
 
+  it 'should encode uuid correctly from tempfile' do
+    encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true, column_types: {0 => :uuid})
+    encoder.add ['e876eef5-a116-4a27-b71f-bac4a1dcd20e']
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("uuid.dat")
+    str = io.read
+    io.class.name.should == "Tempfile"
+    str.force_encoding("ASCII-8BIT")
+    #File.open("spec/fixtures/output.dat", "w:ASCII-8BIT") {|out| out.write(str) }
+    str.should == existing_data
+  end
+
 end

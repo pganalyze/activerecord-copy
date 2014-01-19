@@ -13,8 +13,8 @@ module PgDataEncoder
     def add(row)
       setup_io if !@io
       @io.write([row.size].pack("n"))
-      row.each {|col|
-        encode_field(@io, col)
+      row.each_with_index {|col, index|
+        encode_field(@io, col, index)
       }
     end
 
@@ -53,7 +53,8 @@ module PgDataEncoder
       @io.write([0,0].pack("NN"))
     end
 
-    def encode_field(io, field, depth=0)
+    def encode_field(io, field, index, depth=0)
+
       case field
       when Integer
         buf = [field].pack("N")
@@ -74,11 +75,19 @@ module PgDataEncoder
       when nil
         io.write([-1].pack("N"))
       when String
-        buf = field.encode("UTF-8")
-        io.write([buf.bytesize].pack("N"))
-        io.write(buf)
+        if @options[:column_types] && @options[:column_types][index] == :uuid
+          io.write([16].pack("N"))
+          c = [field.gsub(/-/, "")].pack('H*')
+          io.write(c)
+        else
+          buf = field.encode("UTF-8")
+          io.write([buf.bytesize].pack("N"))
+          io.write(buf)
+        end
       when Array
         array_io = StringIO.new
+        field.compact!
+        completed = false
         case field[0]
         when String
           array_io.write([1].pack("N"))  # unknown
@@ -108,14 +117,17 @@ module PgDataEncoder
             array_io.write(buf)
             
           }
+        when nil
+          io.write([-1].pack("N"))
+          completed = true
         else
           raise Exception.new("Arrays support int or string only")
         end
 
-        io.write([array_io.pos].pack("N"))
-        
-        
-        io.write(array_io.string)
+        if !completed
+          io.write([array_io.pos].pack("N")) 
+          io.write(array_io.string)
+        end
       when Hash
         raise Exception.new("Hash's can't contain hashes") if depth > 0
         hash_io = StringIO.new
@@ -125,7 +137,7 @@ module PgDataEncoder
           buf = key.to_s.encode("UTF-8")
           hash_io.write([buf.bytesize].pack("N"))
           hash_io.write(buf.to_s)
-          encode_field(hash_io, val.nil? ? val : val.to_s, depth + 1)
+          encode_field(hash_io, val.nil? ? val : val.to_s, index, depth + 1)
         }
         io.write([hash_io.pos].pack("N"))  # assumed identifier for hstore column
         io.write(hash_io.string)
