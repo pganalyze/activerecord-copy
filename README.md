@@ -72,7 +72,7 @@ or
   * Floats (double precision)
   * Timestamp
   * Date
-  * Array (integer and string single dimension)
+  * Array (integer, string, uuid single dimension)  (uuid needs to specify column_types of :uuid)
   * UUID (through passing column_types: {0 => :uuid} to options hash)
 
 ## Contributing

@@ -7,6 +7,7 @@ module PgDataEncoder
     def initialize(options = {})
       @options = options
       @closed = false
+      options[:column_types] ||= {}
       @io = nil
     end
 
@@ -90,19 +91,35 @@ module PgDataEncoder
         completed = false
         case field[0]
         when String
-          array_io.write([1].pack("N"))  # unknown
-          array_io.write([0].pack("N"))  # unknown
+          if @options[:column_types][index] == :uuid
+            array_io.write([1].pack("N"))  # unknown
+            array_io.write([0].pack("N"))  # unknown
 
-          array_io.write([1043].pack("N"))  # I think is used to determine string data type
-          array_io.write([field.size].pack("N"))
-          array_io.write([1].pack("N"))   # forcing single dimension array for now
-          
-          field.each_with_index {|val, index|
-            buf = val.to_s.encode("UTF-8")
-            array_io.write([buf.bytesize].pack("N"))
-            array_io.write(buf)
+            array_io.write([2950].pack("N"))  # I think is used to determine string data type
+            array_io.write([field.size].pack("N"))
+            array_io.write([1].pack("N"))   # forcing single dimension array for now
             
-          }
+            field.each_with_index {|val, index|
+              array_io.write([16].pack("N"))
+              c = [val.gsub(/-/, "")].pack('H*')
+              array_io.write(c)
+              
+            }
+          else
+            array_io.write([1].pack("N"))  # unknown
+            array_io.write([0].pack("N"))  # unknown
+
+            array_io.write([1043].pack("N"))  # I think is used to determine string data type
+            array_io.write([field.size].pack("N"))
+            array_io.write([1].pack("N"))   # forcing single dimension array for now
+            
+            field.each_with_index {|val, index|
+              buf = val.to_s.encode("UTF-8")
+              array_io.write([buf.bytesize].pack("N"))
+              array_io.write(buf)
+              
+            }
+          end
         when Integer
           array_io.write([1].pack("N"))  # unknown
           array_io.write([0].pack("N"))  # unknown
