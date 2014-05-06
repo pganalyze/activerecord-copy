@@ -3,24 +3,36 @@ require 'stringio'
 module PgDataEncoder
   POSTGRES_EPOCH_TIME = (Time.utc(2000,1,1).to_f * 1_000_000).to_i
 
+  
   class EncodeForCopy
     def initialize(options = {})
       @options = options
       @closed = false
       options[:column_types] ||= {}
       @io = nil
+      @buffer = TempBuffer.new
     end
 
     def add(row)
       setup_io if !@io
       @io.write([row.size].pack("n"))
       row.each_with_index {|col, index|
-        encode_field(@io, col, index)
+        encode_field(@buffer, col, index)
+        if @buffer.size > (1024 * 100)
+          @buffer.rewind
+          @io.write(@buffer.read)
+          @buffer.reopen
+        end
       }
     end
 
     def close
       @closed = true
+      if @buffer.size > 0
+        @buffer.rewind
+        @io.write(@buffer.read)
+        @buffer.reopen
+      end
       @io.write([-1].pack("n")) rescue raise Exception.new("No rows have been added to the encoder!")
       @io.rewind
     end
@@ -86,7 +98,7 @@ module PgDataEncoder
           io.write(buf)
         end
       when Array
-        array_io = StringIO.new
+        array_io = TempBuffer.new
         field.compact!
         completed = false
         case field[0]
@@ -147,7 +159,7 @@ module PgDataEncoder
         end
       when Hash
         raise Exception.new("Hash's can't contain hashes") if depth > 0
-        hash_io = StringIO.new
+        hash_io = TempBuffer.new
         
         hash_io.write([field.size].pack("N"))
         field.each_pair {|key,val|
