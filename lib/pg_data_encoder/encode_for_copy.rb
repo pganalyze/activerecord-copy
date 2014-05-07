@@ -18,8 +18,8 @@ module PgDataEncoder
       @io.write([row.size].pack("n"))
       row.each_with_index {|col, index|
         encode_field(@buffer, col, index)
-        if @buffer.size > (1024 * 100)
-          @buffer.rewind
+        if @buffer.size > 0
+          #@buffer.rewind
           @io.write(@buffer.read)
           @buffer.reopen
         end
@@ -29,7 +29,7 @@ module PgDataEncoder
     def close
       @closed = true
       if @buffer.size > 0
-        @buffer.rewind
+        #@buffer.rewind
         @io.write(@buffer.read)
         @buffer.reopen
       end
