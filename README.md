@@ -8,6 +8,10 @@ Works well in collaboration with the postgres-copy gem
 
 With it you can make a bulk insert like this
 
+    class Product < ActiveRecord::Base
+      acts_as_copy_target
+    end
+
     encoder = PgDataEncoder::EncodeForCopy.new
     encoder.add [1, "test", "first"]
     encoder.add [2, "test2", "second"]
