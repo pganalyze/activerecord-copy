@@ -8,11 +8,15 @@ Works well in collaboration with the postgres-copy gem
 
 With it you can make a bulk insert like this
 
+    class Product < ActiveRecord::Base
+      acts_as_copy_target
+    end
+
     encoder = PgDataEncoder::EncodeForCopy.new
     encoder.add [1, "test", "first"]
     encoder.add [2, "test2", "second"]
 
-    Product.pg_copy_from(encoder.get_io, :format => :binary, :columns => [:id, :name, :desc])
+    Product.copy_from(encoder.get_io, :format => :binary, :columns => [:id, :name, :desc])
 
 ## Try it out yourself,   in the examples folder there is a simple test
 
@@ -63,7 +67,7 @@ or
 
 ## Added type support
 
-  Currently it supports 
+  Currently it supports
 
   * Integers
   * Strings
