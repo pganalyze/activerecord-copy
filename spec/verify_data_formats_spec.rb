@@ -1,3 +1,4 @@
+# encoding: utf-8
 require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
 describe "generating data" do
@@ -20,6 +21,20 @@ describe "generating data" do
     encoder.close
     io = encoder.get_io
     existing_data = filedata("3_col_hstore.dat")
+    str = io.read
+    io.class.name.should == "Tempfile"
+    str.force_encoding("ASCII-8BIT")
+    #File.open("spec/fixtures/output.dat", "w:ASCII-8BIT") {|out| out.write(str) }
+    str.should == existing_data
+  end
+
+  it 'should encode hstore with utf8 data correctly from tempfile' do
+    encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
+    encoder.add [{test: "Ekström"}]
+    encoder.add [{test: "Dueñas"}]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("hstore_utf8.dat")
     str = io.read
     io.class.name.should == "Tempfile"
     str.force_encoding("ASCII-8BIT")
@@ -238,4 +253,17 @@ describe "generating data" do
     str.should == existing_data
   end
 
+
+  it 'should encode utf8 string correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    ekstrom = "Ekström"
+    encoder.add [ekstrom]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("utf8.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
 end

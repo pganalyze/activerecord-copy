@@ -3,7 +3,7 @@ class TempBuffer
     @st = ""
   end
   def size 
-    @st.size
+    @st.bytesize
   end
 
   def write(st)
@@ -19,7 +19,7 @@ class TempBuffer
     @st
   end
   def pos
-    @st.size
+    @st.bytesize
   end
   def string
     @st
