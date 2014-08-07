@@ -32,6 +32,7 @@ describe "generating data" do
     encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
     encoder.add [{test: "Ekström"}]
     encoder.add [{test: "Dueñas"}]
+    encoder.add [{"account_first_name"=>"asdfasdf asñas", "testtesttesttesttesttestest"=>"" , "aasdfasdfasdfasdfasdfasdfasdfasdfasfasfasdfs"=>""}]  #needed to verify encoding issue
     encoder.close
     io = encoder.get_io
     existing_data = filedata("hstore_utf8.dat")
