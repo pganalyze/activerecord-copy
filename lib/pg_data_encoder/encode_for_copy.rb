@@ -70,9 +70,15 @@ module PgDataEncoder
 
       case field
       when Integer
-        buf = [field].pack("N")
-        io.write([buf.bytesize].pack("N"))
-        io.write(buf)
+        if @options[:column_types] && @options[:column_types][index] == :bigint
+          io.write([8].pack("N"))
+          c = [field].pack('Q>')
+          io.write(c)
+        else
+          buf = [field].pack("N")
+          io.write([buf.bytesize].pack("N"))
+          io.write(buf)
+        end
       when Float
         buf = [field].pack("G")
         io.write([buf.bytesize].pack("N"))
@@ -91,6 +97,10 @@ module PgDataEncoder
         if @options[:column_types] && @options[:column_types][index] == :uuid
           io.write([16].pack("N"))
           c = [field.gsub(/-/, "")].pack('H*')
+          io.write(c)
+        elsif @options[:column_types] && @options[:column_types][index] == :bigint
+          io.write([8].pack("N"))
+          c = [field.to_i].pack('Q>')
           io.write(c)
         else
           buf = field.encode("UTF-8")
