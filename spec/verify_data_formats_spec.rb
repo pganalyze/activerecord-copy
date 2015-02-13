@@ -175,12 +175,37 @@ describe "generating data" do
     str.should == existing_data
   end
 
+  it 'should encode multiple 2015 dates' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [Date.parse("2015-04-08"), nil, Date.parse("2015-04-13")]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("dates.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    str.should == existing_data
+  end
+
   it 'should encode timestamp data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
     encoder.add [Time.parse("2013-06-11 15:03:54.62605 UTC")]
     encoder.close
     io = encoder.get_io
     existing_data = filedata("timestamp.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    #File.open("spec/fixtures/output.dat", "w:ASCII-8BIT") {|out| out.write(str) }
+    str.should == existing_data
+  end
+
+  it 'should encode big timestamp data correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [Time.parse("2014-12-02 16:01:22.437311 UTC")]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("timestamp_9.3.dat")
     str = io.read
     io.class.name.should == "StringIO"
     str.force_encoding("ASCII-8BIT")
