@@ -200,6 +200,45 @@ describe "generating data" do
     str.should == existing_data
   end
 
+  it 'should encode dates and times in pg 9.2.4' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [Date.parse('2015-04-08'), nil,  Time.parse("2015-02-13 16:13:57.732772 UTC")]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("dates_p924.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    #File.open("spec/fixtures/output.dat", "w:ASCII-8BIT") {|out| out.write(str) }
+    str.should == existing_data
+  end
+
+  it 'should encode dates and times in pg 9.3.5' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [Date.parse('2015-04-08'), nil,  Time.parse("2015-02-13 16:13:57.732772 UTC")]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("dates_pg935.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    #File.open("spec/fixtures/output.dat", "w:ASCII-8BIT") {|out| out.write(str) }
+    str.should == existing_data
+  end
+
+  it 'should encode timestamp data correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder.add [Time.parse("2013-06-11 15:03:54.62605 UTC")]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("timestamp.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    #File.open("spec/fixtures/output.dat", "w:ASCII-8BIT") {|out| out.write(str) }
+    str.should == existing_data
+  end
+
   it 'should encode big timestamp data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
     encoder.add [Time.parse("2014-12-02 16:01:22.437311 UTC")]

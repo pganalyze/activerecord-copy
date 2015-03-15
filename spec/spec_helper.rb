@@ -19,3 +19,7 @@ def filedata(filename)
   }
   str
 end
+
+def fileio(filename)
+  File.open("spec/fixtures/#{filename}", "r:ASCII-8BIT") 
+end
