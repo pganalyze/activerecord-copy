@@ -6,8 +6,15 @@ module PgDataEncoder
     def initialize(options = {})
       @options = options
       @closed = false
-      options[:column_types] ||= {}
-      options[:mapping] ||= {}
+      if options[:column_types].kind_of?(Array)
+        map = {}
+        options[:column_types].each_with_index {|c, i|
+          map[i] = c
+        }
+        options[:column_types] = map
+      else
+        options[:column_types] ||= {}
+      end
       @io = nil
     end
 
@@ -27,8 +34,8 @@ module PgDataEncoder
         field = decode_field(@io)
         if field == nil
           row[index] = field 
-        elsif @options[:mapping][index]
-          row[index] = map_field(field, @options[:mapping][index])
+        elsif @options[:column_types][index]
+          row[index] = map_field(field, @options[:column_types][index])
         else
           row[index] = field
         end
@@ -90,6 +97,8 @@ module PgDataEncoder
       case type
       when :int, :integer
         data.unpack("N").first
+      when :bytea
+        data
       when :bigint
         data.unpack("Q>").first
       when :float
@@ -97,7 +106,7 @@ module PgDataEncoder
       when :boolean
         v = data.unpack("C").first
         v == 1
-      when :string
+      when :string, :text, :character
         data.force_encoding("UTF-8")
       when :json
         JSON.load(data)
@@ -106,7 +115,7 @@ module PgDataEncoder
         "#{r[0..7]}-#{r[8..11]}-#{r[12..15]}-#{r[16..19]}-#{r[20..-1]}"
       when :uuid_raw
         r = data.unpack('H*').first
-      when :array
+      when :array, :"integer[]", :"uuid[]", :"character[]"
         io = StringIO.new(data)
         io.read(4)  #unknown
         io.read(4)  #unknown

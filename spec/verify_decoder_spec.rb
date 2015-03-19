@@ -6,7 +6,7 @@ describe "parsing data" do
   it 'should walk through each line and stop' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("hstore_utf8.dat"), 
-      mapping: {0 => :hstore}
+      column_types: {0 => :hstore}
     )
     lines = []
     decoder.each do |l|
@@ -21,7 +21,7 @@ describe "parsing data" do
   it 'should handle getting called after running out of data' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("3_col_hstore.dat"), 
-      mapping: {0 => :int, 1=> :string, 2 => :hstore}
+      column_types: {0 => :int, 1=> :string, 2 => :hstore}
     )
     r = decoder.read_line
     r.should == [1, "text", {'a' => "1", "b" => "asdf"}]
@@ -33,7 +33,7 @@ describe "parsing data" do
   it 'should encode hstore data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("3_col_hstore.dat"), 
-      mapping: {0 => :int, 1=> :string, 2 => :hstore}
+      column_types: {0 => :int, 1=> :string, 2 => :hstore}
     )
     r = decoder.read_line
     r.should == [1, "text", {'a' => "1", "b" => "asdf"}]
@@ -43,7 +43,7 @@ describe "parsing data" do
   it 'should return nil if past data' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("3_col_hstore.dat"), 
-      mapping: {0 => :int, 1=> :string, 2 => :hstore}
+      column_types: {0 => :int, 1=> :string, 2 => :hstore}
     )
     r = decoder.read_line
     r.should == [1, "text", {'a' => "1", "b" => "asdf"}]
@@ -54,7 +54,7 @@ describe "parsing data" do
   it 'should encode hstore with utf8 data correctly from tempfile' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("hstore_utf8.dat"), 
-      mapping: {0 => :hstore}
+      column_types: {0 => :hstore}
     )
     r = decoder.read_line
     r.should == [{'test' => "Ekström"}]
@@ -68,7 +68,7 @@ describe "parsing data" do
   it 'should encode TrueClass data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("trueclass.dat"), 
-      mapping: {0 => :boolean}
+      column_types: {0 => :boolean}
     )
     r = decoder.read_line
     r.should == [true]
@@ -77,7 +77,7 @@ describe "parsing data" do
   it 'should encode FalseClass data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("falseclass.dat"), 
-      mapping: {0 => :boolean}
+      column_types: {0 => :boolean}
     )
     r = decoder.read_line
     r.should == [false]
@@ -86,7 +86,7 @@ describe "parsing data" do
   it 'should encode array data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("array_with_two2.dat"), 
-      mapping: {0 => :array}
+      column_types: {0 => :array}
     )
     r = decoder.read_line
     r.should == [["hi", "jim"]]
@@ -96,7 +96,7 @@ describe "parsing data" do
   it 'should encode string array data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("big_str_array.dat"), 
-      mapping: {0 => :array}
+      column_types: {0 => :array}
     )
     r = decoder.read_line
     r.should == [['asdfasdfasdfasdf', 'asdfasdfasdfasdfadsfadf', '1123423423423']]
@@ -106,7 +106,7 @@ describe "parsing data" do
   it 'should encode string array with big string int' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("just_an_array2.dat"), 
-      mapping: {0 => :array}
+      column_types: {0 => :array}
     )
     r = decoder.read_line
     r.should == [["182749082739172"]]
@@ -116,7 +116,7 @@ describe "parsing data" do
   it 'should encode string array data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("big_str_array2.dat"), 
-      mapping: {0 => :array}
+      column_types: {0 => :array}
     )
     r = decoder.read_line
     r.should == [['asdfasdfasdfasdf', 'asdfasdfasdfasdfadsfadf']]
@@ -138,7 +138,7 @@ describe "parsing data" do
   it 'should encode integer array data from tempfile correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("intarray.dat"), 
-      mapping: {0 => :array}
+      column_types: {0 => :array}
     )
     r = decoder.read_line
     r.should == [[1,2,3]]
@@ -147,7 +147,7 @@ describe "parsing data" do
   it 'should encode old date data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("date.dat"), 
-      mapping: {0 => :date}
+      column_types: {0 => :date}
     )
     r = decoder.read_line
     r.should == [Date.parse("1900-12-03")]
@@ -157,7 +157,7 @@ describe "parsing data" do
   it 'should encode date data correctly for years > 2000' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("date2000.dat"), 
-      mapping: {0 => :date}
+      column_types: {0 => :date}
     )
     r = decoder.read_line
     r.should == [Date.parse("2033-01-12")]
@@ -167,7 +167,7 @@ describe "parsing data" do
   it 'should encode date data correctly in the 70s' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("date2.dat"), 
-      mapping: {0 => :date}
+      column_types: {0 => :date}
     )
     r = decoder.read_line
     r.should == [Date.parse("1971-12-11")]
@@ -177,7 +177,7 @@ describe "parsing data" do
   it 'should encode multiple 2015 dates' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("dates.dat"), 
-      mapping: {0 => :date, 1 => :date, 2 => :date}
+      column_types: {0 => :date, 1 => :date, 2 => :date}
     )
     r = decoder.read_line
     r.should == [Date.parse("2015-04-08"), nil, Date.parse("2015-04-13")]
@@ -187,7 +187,7 @@ describe "parsing data" do
   it 'should encode timestamp data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("timestamp.dat"), 
-      mapping: {0 => :time}
+      column_types: {0 => :time}
     )
     r = decoder.read_line
     r.map(&:to_f).should == [Time.parse("2013-06-11 15:03:54.62605 UTC")].map(&:to_f)
@@ -197,7 +197,7 @@ describe "parsing data" do
   it 'should encode dates and times in pg 9.2.4' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("dates_p924.dat"), 
-      mapping: {0 => :date, 2 => :time}
+      column_types: {0 => :date, 2 => :time}
     )
     r = decoder.read_line
     r.map {|f| f.kind_of?(Time) ? f.to_f : f}.should == [Date.parse('2015-04-08'), nil,  Time.parse("2015-02-13 16:13:57.732772 UTC")].map {|f| f.kind_of?(Time) ? f.to_f : f}
@@ -207,7 +207,7 @@ describe "parsing data" do
   it 'should encode dates and times in pg 9.3.5' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("dates_pg935.dat"), 
-      mapping: {0 => :date, 2 => :time}
+      column_types: {0 => :date, 2 => :time}
     )
     r = decoder.read_line
     r.map {|f| f.kind_of?(Time) ? f.to_f : f}.should == [Date.parse('2015-04-08'), nil,  Time.parse("2015-02-13 16:13:57.732772 UTC")].map {|f| f.kind_of?(Time) ? f.to_f : f}
@@ -218,7 +218,7 @@ describe "parsing data" do
   it 'should encode big timestamp data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("timestamp_9.3.dat"), 
-      mapping: {0 => :time}
+      column_types: {0 => :time}
     )
     r = decoder.read_line
     r.map {|f| f.kind_of?(Time) ? f.to_f : f}.should == [Time.parse("2014-12-02 16:01:22.437311 UTC")].map {|f| f.kind_of?(Time) ? f.to_f : f}
@@ -228,7 +228,7 @@ describe "parsing data" do
   it 'should encode float data correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("float.dat"), 
-      mapping: {0 => :float}
+      column_types: {0 => :float}
     )
     r = decoder.read_line
     r.should == [1234567.1234567]
@@ -238,7 +238,7 @@ describe "parsing data" do
   it 'should encode uuid correctly from tempfile' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("uuid.dat"), 
-      mapping: {0 => :uuid}
+      column_types: {0 => :uuid}
     )
     r = decoder.read_line
     r.should == ['e876eef5-a116-4a27-b71f-bac4a1dcd20e']
@@ -248,7 +248,7 @@ describe "parsing data" do
   it 'should encode null uuid correctly from tempfile' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("empty_uuid.dat"), 
-      mapping: {0 => :string, 1 => :uuid, 2 => :uuid, 3 => :integer}
+      column_types: {0 => :string, 1 => :uuid, 2 => :uuid, 3 => :integer}
     )
     r = decoder.read_line
     r.should == ['before2', nil, nil, 123423423]
@@ -259,7 +259,7 @@ describe "parsing data" do
   it 'should encode uuid correctly from tempfile' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("uuid_array.dat"), 
-      mapping: {0 => :array}
+      column_types: {0 => :array}
     )
     r = decoder.read_line
     r.should == [['6272bd7d-adae-44b7-bba1-dca871c2a6fd', '7dc8431f-fcce-4d4d-86f3-6857cba47d38']]
@@ -270,7 +270,7 @@ describe "parsing data" do
   it 'should encode utf8 string correctly' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("utf8.dat"), 
-      mapping: {0 => :string}
+      column_types: {0 => :string}
     )
     r = decoder.read_line
     r.should == ["Ekström"]
@@ -280,7 +280,7 @@ describe "parsing data" do
   it 'should encode bigint as int correctly from tempfile' do
     decoder = PgDataEncoder::Decoder.new(
       io: fileio("bigint.dat"), 
-      mapping: {0 => :bigint, 1 => :string}
+      column_types: {0 => :bigint, 1 => :string}
     )
     r = decoder.read_line
     r.should == [23372036854775808, 'test']
