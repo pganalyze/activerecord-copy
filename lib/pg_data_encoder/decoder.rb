@@ -101,7 +101,7 @@ module PgDataEncoder
         data
       when :bigint
         data.unpack("Q>").first
-      when :float
+      when :float, :double
         data.unpack("G").first
       when :boolean
         v = data.unpack("C").first
@@ -120,6 +120,9 @@ module PgDataEncoder
         io.read(4)  #unknown
         io.read(4)  #unknown
         atype = io.read(4).unpack("N").first  #string type?
+        if io.pos == io.size
+          return []
+        end
         size = io.read(4).unpack("N").first
         io.read(4) # should be 1 for dimension
         #p [atype, size]
@@ -149,11 +152,17 @@ module PgDataEncoder
         io = StringIO.new(data)
         fields = io.read(4).unpack("N").first
         h = {}
+
         0.upto(fields - 1).each {|i|
           key_size = io.read(4).unpack("N").first
           key = io.read(key_size).force_encoding("UTF-8")
           value_size = io.read(4).unpack("N").first
-          value = io.read(value_size).force_encoding("UTF-8")
+          if value_size == 4294967295 # nil  "\xFF\xFF\xFF\xFF"
+            value = nil
+          else
+            value = io.read(value_size)
+            value = value.force_encoding("UTF-8") if value.present?
+          end
           h[key] = value
           #p h
         }
@@ -173,7 +182,7 @@ module PgDataEncoder
         #p [data, d, Date.jd(d + Date.new(2000,1,1).jd)]
         Date.jd(d + Date.new(2000,1,1).jd)
       else
-        raise "Unsupported format #{format}"
+        raise "Unsupported format #{type}"
       end
     end
 
