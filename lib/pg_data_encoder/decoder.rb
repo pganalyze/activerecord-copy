@@ -161,7 +161,7 @@ module PgDataEncoder
             value = nil
           else
             value = io.read(value_size)
-            value = value.force_encoding("UTF-8") if value.present?
+            value = value.force_encoding("UTF-8") if !value.nil?
           end
           h[key] = value
           #p h

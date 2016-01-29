@@ -106,78 +106,90 @@ module PgDataEncoder
           io.write(buf)
         end
       when Array
-        array_io = TempBuffer.new
-        field.compact!
-        completed = false
-        case field[0]
-        when String
-          if @options[:column_types][index] == :uuid
-            array_io.write([1].pack("N"))  # unknown
-            array_io.write([0].pack("N"))  # unknown
+        if @options[:column_types] && @options[:column_types][index] == :json
+          buf = field.to_json.encode("UTF-8")
+          io.write([buf.bytesize].pack("N"))
+          io.write(buf)
+        else
+          array_io = TempBuffer.new
+          field.compact!
+          completed = false
+          case field[0]
+          when String
+            if @options[:column_types][index] == :uuid
+              array_io.write([1].pack("N"))  # unknown
+              array_io.write([0].pack("N"))  # unknown
 
-            array_io.write([2950].pack("N"))  # I think is used to determine string data type
-            array_io.write([field.size].pack("N"))
-            array_io.write([1].pack("N"))   # forcing single dimension array for now
-            
-            field.each_with_index {|val, index|
-              array_io.write([16].pack("N"))
-              c = [val.gsub(/-/, "")].pack('H*')
-              array_io.write(c)
+              array_io.write([2950].pack("N"))  # I think is used to determine string data type
+              array_io.write([field.size].pack("N"))
+              array_io.write([1].pack("N"))   # forcing single dimension array for now
               
-            }
-          else
+              field.each_with_index {|val, index|
+                array_io.write([16].pack("N"))
+                c = [val.gsub(/-/, "")].pack('H*')
+                array_io.write(c)
+                
+              }
+            else
+              array_io.write([1].pack("N"))  # unknown
+              array_io.write([0].pack("N"))  # unknown
+
+              array_io.write([1043].pack("N"))  # I think is used to determine string data type
+              array_io.write([field.size].pack("N"))
+              array_io.write([1].pack("N"))   # forcing single dimension array for now
+              
+              field.each_with_index {|val, index|
+                buf = val.to_s.encode("UTF-8")
+                array_io.write([buf.bytesize].pack("N"))
+                array_io.write(buf)
+                
+              }
+            end
+          when Integer
             array_io.write([1].pack("N"))  # unknown
             array_io.write([0].pack("N"))  # unknown
 
-            array_io.write([1043].pack("N"))  # I think is used to determine string data type
+            array_io.write([23].pack("N"))  # I think is used to detemine int data type
             array_io.write([field.size].pack("N"))
             array_io.write([1].pack("N"))   # forcing single dimension array for now
             
             field.each_with_index {|val, index|
-              buf = val.to_s.encode("UTF-8")
+              buf = [val.to_i].pack("N")
               array_io.write([buf.bytesize].pack("N"))
               array_io.write(buf)
               
             }
+          when nil
+            io.write([-1].pack("N"))
+            completed = true
+          else
+            raise Exception.new("Arrays support int or string only")
           end
-        when Integer
-          array_io.write([1].pack("N"))  # unknown
-          array_io.write([0].pack("N"))  # unknown
 
-          array_io.write([23].pack("N"))  # I think is used to detemine int data type
-          array_io.write([field.size].pack("N"))
-          array_io.write([1].pack("N"))   # forcing single dimension array for now
-          
-          field.each_with_index {|val, index|
-            buf = [val.to_i].pack("N")
-            array_io.write([buf.bytesize].pack("N"))
-            array_io.write(buf)
-            
-          }
-        when nil
-          io.write([-1].pack("N"))
-          completed = true
-        else
-          raise Exception.new("Arrays support int or string only")
-        end
-
-        if !completed
-          io.write([array_io.pos].pack("N")) 
-          io.write(array_io.string)
+          if !completed
+            io.write([array_io.pos].pack("N")) 
+            io.write(array_io.string)
+          end
         end
       when Hash
         raise Exception.new("Hash's can't contain hashes") if depth > 0
-        hash_io = TempBuffer.new
-        
-        hash_io.write([field.size].pack("N"))
-        field.each_pair {|key,val|
-          buf = key.to_s.encode("UTF-8")
-          hash_io.write([buf.bytesize].pack("N"))
-          hash_io.write(buf.to_s)
-          encode_field(hash_io, val.nil? ? val : val.to_s, index, depth + 1)
-        }
-        io.write([hash_io.pos].pack("N"))  # size of hstore data
-        io.write(hash_io.string)
+        if @options[:column_types] && @options[:column_types][index] == :json
+          buf = field.to_json.encode("UTF-8")
+          io.write([buf.bytesize].pack("N"))
+          io.write(buf)
+        else
+          hash_io = TempBuffer.new
+          
+          hash_io.write([field.size].pack("N"))
+          field.each_pair {|key,val|
+            buf = key.to_s.encode("UTF-8")
+            hash_io.write([buf.bytesize].pack("N"))
+            hash_io.write(buf.to_s)
+            encode_field(hash_io, val.nil? ? val : val.to_s, index, depth + 1)
+          }
+          io.write([hash_io.pos].pack("N"))  # size of hstore data
+          io.write(hash_io.string)
+        end
       when Time
         buf = [(field.to_f * 1_000_000 - POSTGRES_EPOCH_TIME).to_i].pack("L!>")
         io.write([buf.bytesize].pack("N"))
