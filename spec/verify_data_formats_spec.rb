@@ -252,6 +252,32 @@ describe "generating data" do
     str.should == existing_data
   end
 
+  it 'should encode json hash correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new(column_types: {0 => :json})
+    encoder.add [{}]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("json.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    #File.open("spec/fixtures/output.dat", "w:ASCII-8BIT") {|out| out.write(str) }
+    str.should == existing_data
+  end
+
+  it 'should encode json array correctly' do
+    encoder = PgDataEncoder::EncodeForCopy.new(column_types: {0 => :json})
+    encoder.add [[]]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata("json_array.dat")
+    str = io.read
+    io.class.name.should == "StringIO"
+    str.force_encoding("ASCII-8BIT")
+    #File.open("spec/fixtures/output.dat", "w:ASCII-8BIT") {|out| out.write(str) }
+    str.should == existing_data
+  end
+
   it 'should encode float correctly from tempfile' do
     encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
     encoder.add [Time.parse("2013-06-11 15:03:54.62605 UTC")]
