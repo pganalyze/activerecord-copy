@@ -1,0 +1,7 @@
+source 'http://rubygems.org'
+
+gem 'activerecord', "~> 4.2.6"
+gem 'activesupport', "~> 4.2.6"
+gem 'pg_data_encoder'
+gem 'postgres-copy', "~> 1.0.0"
+gem 'pg'

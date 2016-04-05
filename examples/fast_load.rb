@@ -1,17 +1,17 @@
-require 'active_record'
 require 'postgres-copy'
+require 'active_record'
 require 'pg_data_encoder'
 require 'benchmark'
 # Create a test db before running
 # add any needed username, password, port
 # install the required gems
 #
-# gem install postgres-copy pg_data_encoder activerecord --no-ri --no-rdoc
+# the easiest would to install bundler 
+# > gem install bundler
+# > bundle install
+# > bundle exec fast_load.rb
 
 
-ActiveSupport.on_load :active_record do
-  require "postgres-copy/active_record"
-end
 ActiveRecord::Base.establish_connection(
         :adapter  => "postgresql",
         :host     => "localhost",
@@ -24,8 +24,8 @@ ActiveRecord::Base.connection.execute %{
 }
 
 class TestModel < ActiveRecord::Base
+  acts_as_copy_target
 end
-
 encoder = PgDataEncoder::EncodeForCopy.new
 
 puts "Loading data to disk"
@@ -36,7 +36,7 @@ puts Benchmark.measure {
 }
 puts "inserting into db"
 puts Benchmark.measure {
-  TestModel.pg_copy_from(encoder.get_io, :format => :binary, :columns => [:data])
+  TestModel.copy_from(encoder.get_io, :format => :binary, :columns => [:data])
 }
 
 encoder.remove
