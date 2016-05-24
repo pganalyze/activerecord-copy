@@ -1,5 +1,6 @@
 # encoding: utf-8
 require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
+require 'date'
 
 describe "generating data" do
   it 'should encode hstore data correctly' do
@@ -189,7 +190,7 @@ describe "generating data" do
 
   it 'should encode timestamp data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
-    encoder.add [Time.parse("2013-06-11 15:03:54.62605 UTC")]
+    encoder.add [Time.at(1370963034.62605)]  #Time.parse("2013-06-11 15:03:54.62605 UTC")
     encoder.close
     io = encoder.get_io
     existing_data = filedata("timestamp.dat")
@@ -202,7 +203,7 @@ describe "generating data" do
 
   it 'should encode dates and times in pg 9.2.4' do
     encoder = PgDataEncoder::EncodeForCopy.new
-    encoder.add [Date.parse('2015-04-08'), nil,  Time.parse("2015-02-13 16:13:57.732772 UTC")]
+    encoder.add [Date.parse('2015-04-08'), nil,  Time.at(1423844037.732772)]  # Time.parse("2015-02-13 16:13:57.732772 UTC")
     encoder.close
     io = encoder.get_io
     existing_data = filedata("dates_p924.dat")
@@ -215,7 +216,7 @@ describe "generating data" do
 
   it 'should encode dates and times in pg 9.3.5' do
     encoder = PgDataEncoder::EncodeForCopy.new
-    encoder.add [Date.parse('2015-04-08'), nil,  Time.parse("2015-02-13 16:13:57.732772 UTC")]
+    encoder.add [Date.parse('2015-04-08'), nil,  Time.at(1423844037.732772)]  # Time.parse("2015-02-13 16:13:57.732772 UTC")
     encoder.close
     io = encoder.get_io
     existing_data = filedata("dates_pg935.dat")
@@ -228,7 +229,7 @@ describe "generating data" do
 
   it 'should encode timestamp data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
-    encoder.add [Time.parse("2013-06-11 15:03:54.62605 UTC")]
+    encoder.add [Time.at(1370963034.62605)]  # Time.parse("2013-06-11 15:03:54.62605 UTC")
     encoder.close
     io = encoder.get_io
     existing_data = filedata("timestamp.dat")
@@ -241,7 +242,7 @@ describe "generating data" do
 
   it 'should encode big timestamp data correctly' do
     encoder = PgDataEncoder::EncodeForCopy.new
-    encoder.add [Time.parse("2014-12-02 16:01:22.437311 UTC")]
+    encoder.add [Time.at(1417536082.437311)]  #Time.parse("2014-12-02 16:01:22.437311 UTC")
     encoder.close
     io = encoder.get_io
     existing_data = filedata("timestamp_9.3.dat")
@@ -280,7 +281,7 @@ describe "generating data" do
 
   it 'should encode float correctly from tempfile' do
     encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
-    encoder.add [Time.parse("2013-06-11 15:03:54.62605 UTC")]
+    encoder.add [Time.at(1370963034.62605)]  # Time.parse("2013-06-11 15:03:54.62605 UTC")
     encoder.close
     io = encoder.get_io
     existing_data = filedata("timestamp.dat")
