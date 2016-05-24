@@ -134,7 +134,7 @@ module PgDataEncoder
             r = io.read(16).unpack("H*").first
             "#{r[0..7]}-#{r[8..11]}-#{r[12..15]}-#{r[16..19]}-#{r[20..-1]}"
           }
-        when 1043 #string
+        when 1043, 25 #string
           0.upto(size - 1).map {|i|
             size = io.read(4).unpack("N").first
             io.read(size)
