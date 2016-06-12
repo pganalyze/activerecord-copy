@@ -69,14 +69,14 @@ module PgDataEncoder
       case field
       when Integer
         if @options[:column_types] && @options[:column_types][index] == :bigint
-          io.write([8].pack("N"))
-          c = [field].pack('Q>')
-          io.write(c)
+          buf = [field].pack('Q>')
+        elsif @options[:column_types] && @options[:column_types][index] == :smallint
+          buf = [field].pack('S>')
         else
-          buf = [field].pack("N")
-          io.write([buf.bytesize].pack("N"))
-          io.write(buf)
+          buf = [field].pack('N')
         end
+        io.write([buf.bytesize].pack('N'))
+        io.write(buf)
       when Float
         if @options[:column_types] && @options[:column_types][index] == :decimal
           encode_numeric(io, field)
@@ -106,6 +106,9 @@ module PgDataEncoder
           io.write(c)
         elsif @options[:column_types] && @options[:column_types][index] == :inet
           encode_ip_addr(io, IPAddr.new(field))
+        elsif @options[:column_types] && @options[:column_types][index] == :binary
+          io.write([field.bytesize].pack("N"))
+          io.write(field)
         else
           buf = field.encode("UTF-8")
           io.write([buf.bytesize].pack("N"))
