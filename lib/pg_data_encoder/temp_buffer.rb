@@ -1,27 +1,31 @@
 class TempBuffer
   def initialize
-    @st = "".force_encoding("ASCII-8BIT")
+    @st = ''.force_encoding('ASCII-8BIT')
   end
-  def size 
+
+  def size
     @st.bytesize
   end
 
   def write(st)
-
-    @st << st.force_encoding("ASCII-8BIT")
+    @st << st.dup.force_encoding('ASCII-8BIT')
   end
+
   def rewind
+  end
 
-  end
   def reopen
-    @st = ""
+    @st = ''
   end
+
   def read
     @st
   end
+
   def pos
     @st.bytesize
   end
+
   def string
     @st
   end
