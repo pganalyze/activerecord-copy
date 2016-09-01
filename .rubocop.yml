@@ -1,0 +1,40 @@
+require: rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 2.3
+
+LineLength:
+  Enabled: false
+
+FrozenStringLiteralComment:
+  Enabled: false
+
+ClassLength:
+  Enabled: false
+
+RescueModifier:
+  Enabled: false
+
+AccessorMethodName:
+  Enabled: false
+
+Documentation:
+  Enabled: false
+
+AbcSize:
+  Enabled: false
+
+CyclomaticComplexity:
+  Enabled: false
+
+PerceivedComplexity:
+  Enabled: false
+
+MethodLength:
+  Enabled: false
+
+BlockNesting:
+  Enabled: false
+
+RSpec/DescribeClass:
+  Enabled: false
