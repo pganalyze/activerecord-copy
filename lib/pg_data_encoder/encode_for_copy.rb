@@ -6,7 +6,7 @@ module PgDataEncoder
     def initialize(options = {})
       @options = options
       @closed = false
-      options[:column_types] ||= {}
+      @column_types = @options[:column_types] || {}
       @io = nil
       @buffer = TempBuffer.new
     end
@@ -63,127 +63,77 @@ module PgDataEncoder
     end
 
     def encode_field(io, field, index, depth = 0)
-      # puts format('encode_field(%s, %s, %s, %s)', io.inspect, field.inspect, index.inspect, depth.inspect)
+      # Nil is an exception in that any kind of field type can have a nil value transmitted
+      if field.nil?
+        io.write([-1].pack(PACKED_UINT_32))
+        return
+      end
+
+      if field.is_a?(Array) && ![:json, :jsonb].include?(@column_types[index])
+        encode_array(io, field, index)
+        return
+      end
+
+      case @column_types[index]
+      when :bigint
+        buf = [field.to_i].pack(PACKED_UINT_64)
+        write_field(io, buf)
+      when :integer
+        buf = [field.to_i].pack(PACKED_UINT_32)
+        write_field(io, buf)
+      when :smallint
+        buf = [field.to_i].pack(PACKED_UINT_16)
+        write_field(io, buf)
+      when :numeric
+        encode_numeric(io, field)
+      when :float
+        buf = [field].pack(PACKED_FLOAT_64)
+        write_field(io, buf)
+      when :uuid
+        buf = [field.delete('-')].pack(PACKED_HEX_STRING)
+        write_field(io, buf)
+      when :inet
+        encode_ip_addr(io, IPAddr.new(field))
+      when :binary
+        write_field(io, field)
+      when :json
+        buf = field.to_json.encode(UTF_8_ENCODING)
+        write_field(io, buf)
+      when :jsonb
+        encode_jsonb(io, field)
+      else
+        encode_based_on_input(io, field, index, depth)
+      end
+    end
+
+    def encode_based_on_input(io, field, index, depth)
       case field
       when Integer
-        buf = if @options[:column_types] && @options[:column_types][index] == :bigint
-                [field].pack(PACKED_UINT_64)
-              elsif @options[:column_types] && @options[:column_types][index] == :smallint
-                [field].pack(PACKED_UINT_16)
-              else
-                [field].pack(PACKED_UINT_32)
-              end
+        buf = [field].pack(PACKED_UINT_32)
         write_field(io, buf)
       when Float
-        if @options[:column_types] && @options[:column_types][index] == :decimal
-          encode_numeric(io, field)
-        else
-          buf = [field].pack(PACKED_FLOAT_64)
-          write_field(io, buf)
-        end
+        buf = [field].pack(PACKED_FLOAT_64)
+        write_field(io, buf)
       when true
         buf = [1].pack(PACKED_UINT_8)
         write_field(io, buf)
       when false
         buf = [0].pack(PACKED_UINT_8)
         write_field(io, buf)
-      when nil
-        io.write([-1].pack(PACKED_UINT_32))
       when String
-        if @options[:column_types] && @options[:column_types][index] == :uuid
-          buf = [field.delete('-')].pack(PACKED_HEX_STRING)
-          write_field(io, buf)
-        elsif @options[:column_types] && @options[:column_types][index] == :bigint
-          buf = [field.to_i].pack(PACKED_UINT_64)
-          write_field(io, buf)
-        elsif @options[:column_types] && @options[:column_types][index] == :inet
-          encode_ip_addr(io, IPAddr.new(field))
-        elsif @options[:column_types] && @options[:column_types][index] == :binary
-          write_field(io, field)
-        else
-          buf = field.encode(UTF_8_ENCODING)
-          write_field(io, buf)
-        end
-      when Array
-        if @options[:column_types] && @options[:column_types][index] == :json
-          buf = field.to_json.encode(UTF_8_ENCODING)
-          write_field(io, buf)
-        elsif @options[:column_types] && @options[:column_types][index] == :jsonb
-          encode_jsonb(io, field)
-        else
-          array_io = TempBuffer.new
-          field.compact!
-          completed = false
-          case field[0]
-          when String
-            if @options[:column_types][index] == :uuid
-              array_io.write([1].pack(PACKED_UINT_32)) # unknown
-              array_io.write([0].pack(PACKED_UINT_32)) # unknown
-
-              array_io.write([UUID_TYPE_OID].pack(PACKED_UINT_32))
-              array_io.write([field.size].pack(PACKED_UINT_32))
-              array_io.write([1].pack(PACKED_UINT_32)) # forcing single dimension array for now
-
-              field.each do |val|
-                buf = [val.delete('-')].pack(PACKED_HEX_STRING)
-                write_field(array_io, buf)
-              end
-            else
-              array_io.write([1].pack(PACKED_UINT_32))  # unknown
-              array_io.write([0].pack(PACKED_UINT_32))  # unknown
-
-              array_io.write([VARCHAR_TYPE_OID].pack(PACKED_UINT_32))
-              array_io.write([field.size].pack(PACKED_UINT_32))
-              array_io.write([1].pack(PACKED_UINT_32)) # forcing single dimension array for now
-
-              field.each do |val|
-                buf = val.to_s.encode(UTF_8_ENCODING)
-                write_field(array_io, buf)
-              end
-            end
-          when Integer
-            array_io.write([1].pack(PACKED_UINT_32)) # unknown
-            array_io.write([0].pack(PACKED_UINT_32)) # unknown
-
-            array_io.write([INT_TYPE_OID].pack(PACKED_UINT_32))
-            array_io.write([field.size].pack(PACKED_UINT_32))
-            array_io.write([1].pack(PACKED_UINT_32))   # forcing single dimension array for now
-
-            field.each do |val|
-              buf = [val.to_i].pack(PACKED_UINT_32)
-              write_field(array_io, buf)
-            end
-          when nil
-            io.write([-1].pack(PACKED_UINT_32))
-            completed = true
-          else
-            raise Exception, 'Arrays support int or string only'
-          end
-
-          unless completed
-            io.write([array_io.pos].pack(PACKED_UINT_32))
-            io.write(array_io.string)
-          end
-        end
+        buf = field.encode(UTF_8_ENCODING)
+        write_field(io, buf)
       when Hash
         raise Exception, "Hash's can't contain hashes" if depth > 0
-        if @options[:column_types] && @options[:column_types][index] == :json
-          buf = field.to_json.encode(UTF_8_ENCODING)
-          write_field(io, buf)
-        elsif @options[:column_types] && @options[:column_types][index] == :jsonb
-          encode_jsonb(io, field)
-        else
-          hash_io = TempBuffer.new
-
-          hash_io.write([field.size].pack(PACKED_UINT_32))
-          field.each_pair do |key, val|
-            buf = key.to_s.encode(UTF_8_ENCODING)
-            write_field(hash_io, buf)
-            encode_field(hash_io, val.nil? ? val : val.to_s, index, depth + 1)
-          end
-          io.write([hash_io.pos].pack(PACKED_UINT_32)) # size of hstore data
-          io.write(hash_io.string)
+        hash_io = TempBuffer.new
+        hash_io.write([field.size].pack(PACKED_UINT_32))
+        field.each_pair do |key, val|
+          buf = key.to_s.encode(UTF_8_ENCODING)
+          write_field(hash_io, buf)
+          encode_field(hash_io, val.nil? ? val : val.to_s, index, depth + 1)
         end
+        io.write([hash_io.pos].pack(PACKED_UINT_32)) # size of hstore data
+        io.write(hash_io.string)
       when Time
         buf = [(field.to_f * 1_000_000 - POSTGRES_EPOCH_TIME).to_i].pack(PACKED_UINT_64)
         write_field(io, buf)
@@ -194,6 +144,62 @@ module PgDataEncoder
         encode_ip_addr(io, field)
       else
         raise Exception, "Unsupported Format: #{field.class.name}"
+      end
+    end
+
+    def encode_array(io, field, index)
+      array_io = TempBuffer.new
+      field.compact!
+      completed = false
+      case field[0]
+      when String
+        if @column_types[index] == :uuid
+          array_io.write([1].pack(PACKED_UINT_32)) # unknown
+          array_io.write([0].pack(PACKED_UINT_32)) # unknown
+
+          array_io.write([UUID_TYPE_OID].pack(PACKED_UINT_32))
+          array_io.write([field.size].pack(PACKED_UINT_32))
+          array_io.write([1].pack(PACKED_UINT_32)) # forcing single dimension array for now
+
+          field.each do |val|
+            buf = [val.delete('-')].pack(PACKED_HEX_STRING)
+            write_field(array_io, buf)
+          end
+        else
+          array_io.write([1].pack(PACKED_UINT_32))  # unknown
+          array_io.write([0].pack(PACKED_UINT_32))  # unknown
+
+          array_io.write([VARCHAR_TYPE_OID].pack(PACKED_UINT_32))
+          array_io.write([field.size].pack(PACKED_UINT_32))
+          array_io.write([1].pack(PACKED_UINT_32)) # forcing single dimension array for now
+
+          field.each do |val|
+            buf = val.to_s.encode(UTF_8_ENCODING)
+            write_field(array_io, buf)
+          end
+        end
+      when Integer
+        array_io.write([1].pack(PACKED_UINT_32)) # unknown
+        array_io.write([0].pack(PACKED_UINT_32)) # unknown
+
+        array_io.write([INT_TYPE_OID].pack(PACKED_UINT_32))
+        array_io.write([field.size].pack(PACKED_UINT_32))
+        array_io.write([1].pack(PACKED_UINT_32)) # forcing single dimension array for now
+
+        field.each do |val|
+          buf = [val.to_i].pack(PACKED_UINT_32)
+          write_field(array_io, buf)
+        end
+      when nil
+        io.write([-1].pack(PACKED_UINT_32))
+        completed = true
+      else
+        raise Exception, 'Arrays support int or string only'
+      end
+
+      unless completed
+        io.write([array_io.pos].pack(PACKED_UINT_32))
+        io.write(array_io.string)
       end
     end
 
