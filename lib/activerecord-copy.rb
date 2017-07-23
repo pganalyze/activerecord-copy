@@ -9,7 +9,7 @@ require 'activerecord-copy/decoder'
 
 require 'json'
 
-require 'active_support'
+require 'active_record'
 
 module ActiveRecordCopy
   module CopyFromClient
@@ -87,6 +87,4 @@ module ActiveRecordCopy
   end
 end
 
-if defined?(ActiveRecord::Base)
-  ActiveRecord::Base.extend(ActiveRecordCopy::CopyFromClient)
-end
+ActiveRecord::Base.send(:include, ActiveRecordCopy::CopyFromClient)
