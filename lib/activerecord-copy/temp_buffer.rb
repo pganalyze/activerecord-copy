@@ -1,4 +1,4 @@
-module PgDataEncoder
+module ActiveRecordCopy
   class TempBuffer
     def initialize
       @st = ''.force_encoding(ASCII_8BIT_ENCODING)

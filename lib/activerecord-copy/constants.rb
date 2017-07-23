@@ -1,4 +1,4 @@
-module PgDataEncoder
+module ActiveRecordCopy
   PACKED_UINT_8 = 'C'.freeze # 8-bit unsigned (unsigned char)
   PACKED_UINT_16 = 'n'.freeze # 16-bit unsigned, network (big-endian) byte order
   PACKED_UINT_32 = 'N'.freeze # 32-bit unsigned, network (big-endian) byte order

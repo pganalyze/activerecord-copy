@@ -2,7 +2,7 @@ require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
 describe 'multiline hstore' do
   it 'encodes multiline hstore data correctly' do
-    encoder = PgDataEncoder::EncodeForCopy.new
+    encoder = ActiveRecordCopy::EncodeForCopy.new
     encoder.add [1, { a: 1, b: 2 }]
     encoder.add [2, { a: 1, b: 3 }]
     encoder.close

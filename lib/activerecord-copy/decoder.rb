@@ -1,7 +1,7 @@
 require 'tempfile'
 require 'stringio'
 
-module PgDataEncoder
+module ActiveRecordCopy
   class Decoder
     def initialize(options = {})
       @options = options
@@ -109,10 +109,10 @@ module PgDataEncoder
         io = StringIO.new(data)
         io.read(4) # unknown
         io.read(4) # unknown
-        atype = io.read(4).unpack(PACKED_UINT_32).first # string type?
-        if io.pos == io.size
-          return []
-        end
+        atype_raw = io.read(4)
+        return [] if atype_raw.nil?
+        atype = atype_raw.unpack(PACKED_UINT_32).first # string type?
+        return [] if io.pos == io.size
         size = io.read(4).unpack(PACKED_UINT_32).first
         io.read(4) # should be 1 for dimension
         # p [atype, size]

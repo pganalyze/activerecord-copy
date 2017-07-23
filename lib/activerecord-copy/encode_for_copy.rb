@@ -1,7 +1,7 @@
 require 'tempfile'
 require 'stringio'
 
-module PgDataEncoder
+module ActiveRecordCopy
   class EncodeForCopy
     def initialize(options = {})
       @options = options
@@ -135,7 +135,7 @@ module PgDataEncoder
         io.write([hash_io.pos].pack(PACKED_UINT_32)) # size of hstore data
         io.write(hash_io.string)
       when Time
-        buf = [(field.to_f * 1_000_000 - POSTGRES_EPOCH_TIME).to_i].pack(PACKED_UINT_64)
+        buf = [(field.tv_sec * 1_000_000 + field.tv_usec - POSTGRES_EPOCH_TIME).to_i].pack(PACKED_UINT_64)
         write_field(io, buf)
       when Date
         buf = [(field - Date.new(2000, 1, 1)).to_i].pack(PACKED_UINT_32)

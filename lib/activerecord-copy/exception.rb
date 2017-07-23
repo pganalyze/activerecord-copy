@@ -1,4 +1,4 @@
-module PgDataEncoder
+module ActiveRecordCopy
   class Exception < StandardError
   end
 end

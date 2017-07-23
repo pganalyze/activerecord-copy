@@ -3,7 +3,7 @@ require 'benchmark'
 
 describe 'testing changes with large imports and speed issues' do
   it 'imports lots of data quickly' do
-    encoder = PgDataEncoder::EncodeForCopy.new(temp_file: true)
+    encoder = ActiveRecordCopy::EncodeForCopy.new(temp_file: true)
 
     puts Benchmark.measure {
       0.upto(100_000) do

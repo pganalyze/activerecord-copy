@@ -4,7 +4,7 @@ require 'time'
 
 describe 'parsing data' do
   it 'walks through each line and stop' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('hstore_utf8.dat'),
       column_types: { 0 => :hstore }
     )
@@ -20,7 +20,7 @@ describe 'parsing data' do
   end
 
   it 'handles getting called after running out of data' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('3_col_hstore.dat'),
       column_types: { 0 => :int, 1 => :string, 2 => :hstore }
     )
@@ -31,7 +31,7 @@ describe 'parsing data' do
   end
 
   it 'encodes hstore data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('3_col_hstore.dat'),
       column_types: { 0 => :int, 1 => :string, 2 => :hstore }
     )
@@ -40,7 +40,7 @@ describe 'parsing data' do
   end
 
   it 'returns nil if past data' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('3_col_hstore.dat'),
       column_types: { 0 => :int, 1 => :string, 2 => :hstore }
     )
@@ -51,7 +51,7 @@ describe 'parsing data' do
   end
 
   it 'encodes hstore with utf8 data correctly from tempfile' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('hstore_utf8.dat'),
       column_types: { 0 => :hstore }
     )
@@ -64,7 +64,7 @@ describe 'parsing data' do
   end
 
   it 'encodes TrueClass data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('trueclass.dat'),
       column_types: { 0 => :boolean }
     )
@@ -73,7 +73,7 @@ describe 'parsing data' do
   end
 
   it 'encodes FalseClass data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('falseclass.dat'),
       column_types: { 0 => :boolean }
     )
@@ -82,7 +82,7 @@ describe 'parsing data' do
   end
 
   it 'encodes array data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('array_with_two2.dat'),
       column_types: { 0 => :array }
     )
@@ -91,7 +91,7 @@ describe 'parsing data' do
   end
 
   it 'encodes string array data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('big_str_array.dat'),
       column_types: { 0 => :array }
     )
@@ -100,7 +100,7 @@ describe 'parsing data' do
   end
 
   it 'encodes string array with big string int' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('just_an_array2.dat'),
       column_types: { 0 => :array }
     )
@@ -109,7 +109,7 @@ describe 'parsing data' do
   end
 
   it 'encodes string array data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('big_str_array2.dat'),
       column_types: { 0 => :array }
     )
@@ -117,20 +117,17 @@ describe 'parsing data' do
     expect(r).to eq [%w(asdfasdfasdfasdf asdfasdfasdfasdfadsfadf)]
   end
 
-  # it 'encodes array data from tempfile correctly' do
-  #  encoder = PgDataEncoder::EncodeForCopy.new(:use_tempfile => true)
-  #  encoder.add [1, 'hi', ['hi', 'there', 'rubyist']]
-  #  encoder.close
-  #  io = encoder.get_io
-  #  existing_data = filedata('3_column_array.dat')
-  #  str = io.read_line
-  #  expect(io.class.name).to eq 'Tempfile'
-  #  str.force_encoding('ASCII-8BIT')
-  #  expect(r).to eq existing_data
-  # end
+  it 'encodes array data from tempfile correctly', pending: 'broken right now' do
+    decoder = ActiveRecordCopy::Decoder.new(
+      io: fileio('3_column_array.dat'),
+      column_types: { 0 => :array }
+    )
+    r = decoder.read_line
+    expect(r).to eq [1, 'hi', ['hi', 'there', 'rubyist']]
+  end
 
   it 'encodes integer array data from tempfile correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('intarray.dat'),
       column_types: { 0 => :array }
     )
@@ -139,7 +136,7 @@ describe 'parsing data' do
   end
 
   it 'encodes old date data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('date.dat'),
       column_types: { 0 => :date }
     )
@@ -148,7 +145,7 @@ describe 'parsing data' do
   end
 
   it 'encodes date data correctly for years > 2000' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('date2000.dat'),
       column_types: { 0 => :date }
     )
@@ -157,7 +154,7 @@ describe 'parsing data' do
   end
 
   it 'encodes date data correctly in the 70s' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('date2.dat'),
       column_types: { 0 => :date }
     )
@@ -166,7 +163,7 @@ describe 'parsing data' do
   end
 
   it 'encodes multiple 2015 dates' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('dates.dat'),
       column_types: { 0 => :date, 1 => :date, 2 => :date }
     )
@@ -175,7 +172,7 @@ describe 'parsing data' do
   end
 
   it 'encodes timestamp data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('timestamp.dat'),
       column_types: { 0 => :time }
     )
@@ -184,7 +181,7 @@ describe 'parsing data' do
   end
 
   it 'encodes dates and times in pg 9.2.4' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('dates_p924.dat'),
       column_types: { 0 => :date, 2 => :time }
     )
@@ -193,7 +190,7 @@ describe 'parsing data' do
   end
 
   it 'encodes dates and times in pg 9.3.5' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('dates_pg935.dat'),
       column_types: { 0 => :date, 2 => :time }
     )
@@ -202,7 +199,7 @@ describe 'parsing data' do
   end
 
   it 'encodes big timestamp data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('timestamp_9.3.dat'),
       column_types: { 0 => :time }
     )
@@ -211,7 +208,7 @@ describe 'parsing data' do
   end
 
   it 'encodes float data correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('float.dat'),
       column_types: { 0 => :float }
     )
@@ -220,7 +217,7 @@ describe 'parsing data' do
   end
 
   it 'encodes uuid correctly from tempfile' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('uuid.dat'),
       column_types: { 0 => :uuid }
     )
@@ -229,7 +226,7 @@ describe 'parsing data' do
   end
 
   it 'encodes null uuid correctly from tempfile' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('empty_uuid.dat'),
       column_types: { 0 => :string, 1 => :uuid, 2 => :uuid, 3 => :integer }
     )
@@ -238,7 +235,7 @@ describe 'parsing data' do
   end
 
   it 'encodes uuid correctly from tempfile' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('uuid_array.dat'),
       column_types: { 0 => :array }
     )
@@ -247,7 +244,7 @@ describe 'parsing data' do
   end
 
   it 'encodes utf8 string correctly' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('utf8.dat'),
       column_types: { 0 => :string }
     )
@@ -256,7 +253,7 @@ describe 'parsing data' do
   end
 
   it 'encodes bigint as int correctly from tempfile' do
-    decoder = PgDataEncoder::Decoder.new(
+    decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('bigint.dat'),
       column_types: { 0 => :bigint, 1 => :string }
     )

@@ -2,7 +2,7 @@ $LOAD_PATH.unshift(File.dirname(__FILE__))
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 
 require 'rspec'
-require 'pg_data_encoder'
+require 'activerecord-copy'
 
 RSpec.configure do |config|
   config.before(:suite) do

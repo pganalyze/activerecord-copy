@@ -1,90 +1,40 @@
-# PgDataEncoder
+# activerecord-copy [ ![](https://img.shields.io/gem/v/activerecord-copy.svg)](https://rubygems.org/gems/activerecord-copy) [ ![](https://img.shields.io/gem/dt/activerecord-copy.svg)](https://rubygems.org/gems/activerecord-copy)
 
-Creates a binary data file that can be imported into postgres's copy from command
+Library to assist using binary COPY into PostgreSQL with activerecord.
 
-Works well in collaboration with the postgres-copy gem
-
-    https://github.com/diogob/postgres-copy
-
-With it you can make a bulk insert like this
-
-    class Product < ActiveRecord::Base
-      acts_as_copy_target
-    end
-
-    encoder = PgDataEncoder::EncodeForCopy.new
-    encoder.add [1, "test", "first"]
-    encoder.add [2, "test2", "second"]
-
-    Product.copy_from(encoder.get_io, :format => :binary, :columns => [:id, :name, :desc])
-
-## Try it out yourself,   in the examples folder there is a simple test
-
-on my i3 box with an ssd drive I can get 270,000 inserts a second with an hstore and indexes
-
-NOTE: Only a few of the many data types are supported.  check below for more details
+Binary copy functionality is based on [pg_data_encoder](https://github.com/pbrumm/pg_data_encoder),
+but modified to support additional types, and to prefer column type specifications
+over inferred data types.
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
-    gem 'pg_data_encoder'
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install pg_data_encoder
+    gem 'activerecord-copy'
 
 ## Usage
 
-    pg = PgDataEncoder::EncodeForCopy.new
-    pg.add([1,2,3,4,"text"])
-    io = pg.get_io
+```ruby
+class MyModel < ApplicationRecord
+  include ActiveRecordCopy
+end
 
-For large imports you can use the use_tempfile => true option to enable Tempfile usage.   otherwise it uses StringIO
+MyModel.copy_from_client do
 
-    pg = PgDataEncoder::EncodeForCopy.new(use_tempfile: true)
-    pg.add([1,2,3,4,"text"])
-    io = pg.get_io
+end
+```    
 
-    pg.remove  # to delete your file
+## Authors
 
-## Notes
+* [Lukas Fittl](https://github.com/lfittl)
 
+Credits to [Pete Brumm](https://github.com/pbrumm) who wrote pg_data_encoder and
+which this library repurposes.
 
-Columns must line up on the incoming table.   if they don't you need to filter the copy to not need them
+## LICENSE
 
-    COPY table_name FROM STDIN BINARY
+Copyright (c) 2017, Lukas Fittl <lukas@fittl><br>
+activerecord-copy is licensed under the MIT license, see LICENSE file for details.
 
-or
-
-    COPY table_name(field1, field2) FROM STDIN BINARY
-
-
-
-## Added type support
-
-  Currently it supports
-
-  * Integers
-  * Strings
-  * Hstore
-  * Boolean
-  * Floats (double precision)
-  * Timestamp
-  * Date
-  * Array (integer, string, uuid single dimension)  (uuid needs to specify column_types of :uuid)
-  * UUID (through passing column_types: {0 => :uuid} to options hash)
-
-## Contributing
-
-
-
-1. Fork it
-2. Create your feature branch (`git checkout -b feature/new_feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin feature/new_feature`)
-5. Create new Pull Request
+pg_data_encoder is Copyright (c) 2012, Pete Brumm<br>
+pg_data_encoder is included under the terms of the MIT license, see LICENSE file for details.
