@@ -1,7 +1,23 @@
 require 'tempfile'
 require 'stringio'
+require 'ipaddr'
 
 module ActiveRecordCopy
+  class IntermediateBuffer
+    attr_reader :bytes
+    def initialize
+      @bytes = ''
+    end
+
+    def write(b)
+      @bytes += b
+    end
+
+    def size
+      @bytes.size
+    end
+  end
+
   class EncodeForCopy
     def initialize(options = {})
       @options = options
@@ -62,19 +78,9 @@ module ActiveRecordCopy
       io.write(buf)
     end
 
-    def encode_field(io, field, index, depth = 0)
-      # Nil is an exception in that any kind of field type can have a nil value transmitted
-      if field.nil?
-        io.write([-1].pack(PACKED_UINT_32))
-        return
-      end
-
-      if field.is_a?(Array) && ![:json, :jsonb].include?(@column_types[index])
-        encode_array(io, field, index)
-        return
-      end
-
-      case @column_types[index]
+    # Primitive types that can also appear in ranges/arrays/etc
+    def write_simple_field(io, field, type)
+      case type
       when :bigint
         buf = [field.to_i].pack(PACKED_UINT_64)
         write_field(io, buf)
@@ -89,6 +95,32 @@ module ActiveRecordCopy
       when :float
         buf = [field].pack(PACKED_FLOAT_64)
         write_field(io, buf)
+      when :timestamp, :timestamptz
+        buf = [(field.tv_sec * 1_000_000 + field.tv_usec - POSTGRES_EPOCH_TIME).to_i].pack(PACKED_UINT_64)
+        write_field(io, buf)
+      when :date
+        buf = [(field - Date.new(2000, 1, 1)).to_i].pack(PACKED_UINT_32)
+        write_field(io, buf)
+      else
+        raise Exception, "Unsupported simple type: #{type}"
+      end
+    end
+
+    def encode_field(io, field, index, depth = 0)
+      # Nil is an exception in that any kind of field type can have a nil value transmitted
+      if field.nil?
+        io.write([-1].pack(PACKED_UINT_32))
+        return
+      end
+
+      if field.is_a?(Array) && ![:json, :jsonb].include?(@column_types[index])
+        encode_array(io, field, index)
+        return
+      end
+
+      case @column_types[index]
+      when :bigint, :integer, :smallint, :numeric, :float
+        write_simple_field(io, field, @column_types[index])
       when :uuid
         buf = [field.delete('-')].pack(PACKED_HEX_STRING)
         write_field(io, buf)
@@ -101,6 +133,8 @@ module ActiveRecordCopy
         write_field(io, buf)
       when :jsonb
         encode_jsonb(io, field)
+      when :int4range, :int8range, :numrange, :tsrange, :tstzrange, :daterange
+        encode_range(io, field, @column_types[index])
       else
         encode_based_on_input(io, field, index, depth)
       end
@@ -135,13 +169,26 @@ module ActiveRecordCopy
         io.write([hash_io.pos].pack(PACKED_UINT_32)) # size of hstore data
         io.write(hash_io.string)
       when Time
-        buf = [(field.tv_sec * 1_000_000 + field.tv_usec - POSTGRES_EPOCH_TIME).to_i].pack(PACKED_UINT_64)
-        write_field(io, buf)
+        write_simple_field(io, field, :timestamp)
       when Date
-        buf = [(field - Date.new(2000, 1, 1)).to_i].pack(PACKED_UINT_32)
-        write_field(io, buf)
+        write_simple_field(io, field, :date)
       when IPAddr
         encode_ip_addr(io, field)
+      when Range
+        range_type = case field.begin
+                     when Integer
+                       :int4range
+                     when Float
+                       :numrange
+                     when Time
+                       :tstzrange
+                     when Date
+                       :daterange
+                     else
+                       raise Exception, "Unsupported range input type #{field.begin.class.name} for index #{index}"
+                     end
+
+        encode_range(io, field, range_type)
       else
         raise Exception, "Unsupported Format: #{field.class.name}"
       end
@@ -218,6 +265,49 @@ module ActiveRecordCopy
         io.write([4].pack(PACKED_UINT_8)) # Address length in bytes
       end
       io.write(ip_addr.hton)
+    end
+
+    # From the Postgres source:
+    # Binary representation: The first byte is the flags, then the lower bound
+    # (if present), then the upper bound (if present).  Each bound is represented
+    # by a 4-byte length header and the binary representation of that bound (as
+    # returned by a call to the send function for the subtype).
+    RANGE_LB_INC = 0x02 # lower bound is inclusive
+    RANGE_UB_INC = 0x04 # upper bound is inclusive
+    RANGE_LB_INF = 0x08 # lower bound is -infinity
+    RANGE_UB_INF = 0x10 # upper bound is +infinity
+    def encode_range(io, range, range_type)
+      field_data_type = case range_type
+                        when :int4range
+                          :integer
+                        when :int8range
+                          :bigint
+                        when :numrange
+                          :numeric
+                        when :tsrange
+                          :timestamp
+                        when :tstzrange
+                          :timestamptz
+                        when :daterange
+                          :date
+                        else
+                          raise Exception, "Unsupported range type: #{range_type}"
+                        end
+      flags = 0
+      flags |= RANGE_LB_INC # Ruby ranges always include the lower bound
+      flags |= RANGE_UB_INC unless range.exclude_end?
+      flags |= RANGE_LB_INF if range.begin.respond_to?(:infinite?) && range.begin.infinite?
+      flags |= RANGE_UB_INF if range.end.respond_to?(:infinite?) && range.end.infinite?
+      tmp_io = IntermediateBuffer.new
+      tmp_io.write([flags].pack(PACKED_UINT_8))
+      if range.begin && (!range.begin.respond_to?(:infinite?) || !range.begin.infinite?)
+        write_simple_field(tmp_io, range.begin, field_data_type)
+      end
+      if range.end && (!range.end.respond_to?(:infinite?) || !range.end.infinite?)
+        write_simple_field(tmp_io, range.end, field_data_type)
+      end
+      io.write([tmp_io.size].pack(PACKED_UINT_32))
+      io.write(tmp_io.bytes)
     end
 
     def encode_jsonb(io, field)
