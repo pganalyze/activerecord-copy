@@ -227,7 +227,19 @@ module ActiveRecordCopy
       io.write(buf)
     end
 
-    NUMERIC_DEC_DIGITS = 4 # NBASE=10000
+    NUMERIC_NBASE = 10000
+    def base10_to_base10000(intval)
+      digits = []
+      loop do
+        newintval = intval / NUMERIC_NBASE
+        digits << intval - newintval * NUMERIC_NBASE
+        intval = newintval
+        break if intval == 0
+      end
+      digits
+    end
+
+    NUMERIC_DEC_DIGITS = 4
     def encode_numeric(io, field)
       float_str = field.to_s
       digits_base10 = float_str.scan(/\d/).map(&:to_i)
@@ -235,8 +247,11 @@ module ActiveRecordCopy
       sign          = field < 0.0 ? 0x4000 : 0
       dscale        = digits_base10.size - weight_base10
 
-      digits_before_decpoint = digits_base10[0..weight_base10].reverse.each_slice(NUMERIC_DEC_DIGITS).map { |d| d.reverse.map(&:to_s).join.to_i }.reverse
-      digits_after_decpoint  = digits_base10[weight_base10..-1].each_slice(NUMERIC_DEC_DIGITS).map { |d| d.map(&:to_s).join.to_i }
+      int_part, frac_part = float_str.split('.')
+      frac_part += '0' * (NUMERIC_DEC_DIGITS - frac_part.size % NUMERIC_DEC_DIGITS) # Add trailing zeroes so digit calculations are correct
+
+      digits_before_decpoint = base10_to_base10000(int_part.to_i)
+      digits_after_decpoint = base10_to_base10000(frac_part.to_i).reverse
 
       weight = digits_before_decpoint.size - 1
       digits = digits_before_decpoint + digits_after_decpoint
