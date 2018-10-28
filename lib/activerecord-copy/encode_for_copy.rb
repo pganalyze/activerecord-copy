@@ -1,23 +1,10 @@
+# frozen_string_literal: true
+
 require 'tempfile'
 require 'stringio'
 require 'ipaddr'
 
 module ActiveRecordCopy
-  class IntermediateBuffer
-    attr_reader :bytes
-    def initialize
-      @bytes = ''
-    end
-
-    def write(b)
-      @bytes += b
-    end
-
-    def size
-      @bytes.size
-    end
-  end
-
   class EncodeForCopy
     def initialize(options = {})
       @options = options
@@ -25,26 +12,37 @@ module ActiveRecordCopy
       @column_types = @options[:column_types] || {}
       @io = nil
       @buffer = TempBuffer.new
+      @row_size_encoded = nil
     end
 
     def add(row)
+      fail ArgumentError.new('Empty row added') if row.empty?
+
       setup_io unless @io
-      @io.write([row.size].pack(PACKED_UINT_16))
+
+      # Row size needs to be the same across all rows, so its safe to cache this
+      @row_size_encoded ||= [row.size].pack(PACKED_UINT_16)
+      write(@io, @row_size_encoded)
+
       row.each_with_index do |col, index|
         encode_field(@buffer, col, index)
-        next if @buffer.empty?
-        @io.write(@buffer.read)
-        @buffer.reopen
       end
+
+      write(@io, @buffer.read)
+
+      @buffer.reopen
     end
 
+    ROW_END_MARKER = [-1].pack(PACKED_UINT_16)
     def close
+      raise(Exception, 'No rows have been added to the encoder!') if @io.nil?
+
       @closed = true
       unless @buffer.empty?
-        @io.write(@buffer.read)
+        write(@io, @buffer.read)
         @buffer.reopen
       end
-      @io.write([-1].pack(PACKED_UINT_16)) rescue raise Exception, 'No rows have been added to the encoder!'
+      write(@io, ROW_END_MARKER)
       @io.rewind
     end
 
@@ -64,52 +62,80 @@ module ActiveRecordCopy
 
     def setup_io
       if @options[:use_tempfile] == true
-        @io = Tempfile.new('copy_binary', encoding: 'ascii-8bit')
+        @io = Tempfile.new('copy_binary', encoding: ASCII_8BIT_ENCODING)
         @io.unlink unless @options[:skip_unlink] == true
       else
         @io = StringIO.new
       end
-      @io.write("PGCOPY\n\377\r\n\0")
-      @io.write([0, 0].pack(PACKED_UINT_32 + PACKED_UINT_32))
+      write(@io, "PGCOPY\n\377\r\n\0")
+      pack_and_write(@io, [0, 0], PACKED_UINT_32 + PACKED_UINT_32)
     end
 
-    def write_field(io, buf)
-      io.write([buf.bytesize].pack(PACKED_UINT_32))
+    def pack_and_write(io, data, pack_format)
+      if io.is_a?(String)
+        data.pack(pack_format, buffer: io)
+      else
+        write(io, data.pack(pack_format))
+      end
+    end
+
+    def pack_and_write_with_bufsize(io, data, pack_format)
+      buf = data.pack(pack_format)
+      write_with_bufsize(io, buf)
+    end
+
+    # This wrapper is mostly aimed to aid debugging
+    def write(io, buf)
       io.write(buf)
+    end
+
+    # Pre-allocate very frequent buffer sizes
+    BUFSIZE_4 = [4].pack(PACKED_UINT_32)
+    BUFSIZE_8 = [8].pack(PACKED_UINT_32)
+    BUFSIZE_16 = [16].pack(PACKED_UINT_32)
+    def write_with_bufsize(io, buf)
+      case buf.bytesize
+      when 4
+        write(io, BUFSIZE_4)
+      when 8
+        write(io, BUFSIZE_8)
+      when 16
+        write(io, BUFSIZE_16)
+      else
+        pack_and_write(io, [buf.bytesize], PACKED_UINT_32)
+      end
+      write(io, buf)
     end
 
     # Primitive types that can also appear in ranges/arrays/etc
     def write_simple_field(io, field, type)
       case type
       when :bigint
-        buf = [field.to_i].pack(PACKED_UINT_64)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [field.to_i], PACKED_UINT_64)
       when :integer
-        buf = [field.to_i].pack(PACKED_UINT_32)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [field.to_i], PACKED_UINT_32)
       when :smallint
-        buf = [field.to_i].pack(PACKED_UINT_16)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [field.to_i], PACKED_UINT_16)
       when :numeric
         encode_numeric(io, field)
       when :float
-        buf = [field].pack(PACKED_FLOAT_64)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [field], PACKED_FLOAT_64)
       when :timestamp, :timestamptz
-        buf = [(field.tv_sec * 1_000_000 + field.tv_usec - POSTGRES_EPOCH_TIME).to_i].pack(PACKED_UINT_64)
-        write_field(io, buf)
+        data = field.tv_sec * 1_000_000 + field.tv_usec - POSTGRES_EPOCH_TIME
+        pack_and_write_with_bufsize(io, [data.to_i], PACKED_UINT_64)
       when :date
-        buf = [(field - Date.new(2000, 1, 1)).to_i].pack(PACKED_UINT_32)
-        write_field(io, buf)
+        data = field - Date.new(2000, 1, 1)
+        pack_and_write_with_bufsize(io, [data.to_i], PACKED_UINT_32)
       else
         raise Exception, "Unsupported simple type: #{type}"
       end
     end
 
+    NIL_FIELD = [-1].pack(PACKED_UINT_32)
     def encode_field(io, field, index, depth = 0)
       # Nil is an exception in that any kind of field type can have a nil value transmitted
       if field.nil?
-        io.write([-1].pack(PACKED_UINT_32))
+        write(io, NIL_FIELD)
         return
       end
 
@@ -122,15 +148,13 @@ module ActiveRecordCopy
       when :bigint, :integer, :smallint, :numeric, :float
         write_simple_field(io, field, @column_types[index])
       when :uuid
-        buf = [field.delete('-')].pack(PACKED_HEX_STRING)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [field.delete('-')], PACKED_HEX_STRING)
       when :inet
         encode_ip_addr(io, IPAddr.new(field))
       when :binary
-        write_field(io, field)
+        write_with_bufsize(io, field)
       when :json
-        buf = field.to_json.encode(UTF_8_ENCODING)
-        write_field(io, buf)
+        write_with_bufsize(io, field.to_json.encode(UTF_8_ENCODING))
       when :jsonb
         encode_jsonb(io, field)
       when :int4range, :int8range, :numrange, :tsrange, :tstzrange, :daterange
@@ -143,31 +167,24 @@ module ActiveRecordCopy
     def encode_based_on_input(io, field, index, depth)
       case field
       when Integer
-        buf = [field].pack(PACKED_UINT_32)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [field], PACKED_UINT_32)
       when Float
-        buf = [field].pack(PACKED_FLOAT_64)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [field], PACKED_FLOAT_64)
       when true
-        buf = [1].pack(PACKED_UINT_8)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [1], PACKED_UINT_8)
       when false
-        buf = [0].pack(PACKED_UINT_8)
-        write_field(io, buf)
+        pack_and_write_with_bufsize(io, [0], PACKED_UINT_8)
       when String
-        buf = field.encode(UTF_8_ENCODING)
-        write_field(io, buf)
+        write_with_bufsize(io, field.encode(UTF_8_ENCODING))
       when Hash
         raise Exception, "Hash's can't contain hashes" if depth > 0
         hash_io = TempBuffer.new
-        hash_io.write([field.size].pack(PACKED_UINT_32))
+        pack_and_write(hash_io, [field.size], PACKED_UINT_32)
         field.each_pair do |key, val|
-          buf = key.to_s.encode(UTF_8_ENCODING)
-          write_field(hash_io, buf)
+          write_with_bufsize(hash_io, key.to_s.encode(UTF_8_ENCODING))
           encode_field(hash_io, val.nil? ? val : val.to_s, index, depth + 1)
         end
-        io.write([hash_io.pos].pack(PACKED_UINT_32)) # size of hstore data
-        io.write(hash_io.string)
+        write_with_bufsize(io, hash_io.string)
       when Time
         write_simple_field(io, field, :timestamp)
       when Date
@@ -197,74 +214,68 @@ module ActiveRecordCopy
     def encode_array(io, field, index)
       array_io = TempBuffer.new
       field.compact!
-      completed = false
       case field[0]
       when String
         if @column_types[index] == :uuid
-          array_io.write([1].pack(PACKED_UINT_32)) # unknown
-          array_io.write([0].pack(PACKED_UINT_32)) # unknown
+          pack_and_write(array_io, [1], PACKED_UINT_32) # unknown
+          pack_and_write(array_io, [0], PACKED_UINT_32) # unknown
 
-          array_io.write([UUID_TYPE_OID].pack(PACKED_UINT_32))
-          array_io.write([field.size].pack(PACKED_UINT_32))
-          array_io.write([1].pack(PACKED_UINT_32)) # forcing single dimension array for now
+          pack_and_write(array_io, [UUID_TYPE_OID], PACKED_UINT_32)
+          pack_and_write(array_io, [field.size], PACKED_UINT_32)
+          pack_and_write(array_io, [1], PACKED_UINT_32) # forcing single dimension array for now
 
           field.each do |val|
-            buf = [val.delete('-')].pack(PACKED_HEX_STRING)
-            write_field(array_io, buf)
+            pack_and_write_with_bufsize(array_io, [val.delete('-')], PACKED_HEX_STRING)
           end
         else
-          array_io.write([1].pack(PACKED_UINT_32))  # unknown
-          array_io.write([0].pack(PACKED_UINT_32))  # unknown
+          pack_and_write(array_io, [1], PACKED_UINT_32) # unknown
+          pack_and_write(array_io, [0], PACKED_UINT_32) # unknown
 
-          array_io.write([VARCHAR_TYPE_OID].pack(PACKED_UINT_32))
-          array_io.write([field.size].pack(PACKED_UINT_32))
-          array_io.write([1].pack(PACKED_UINT_32)) # forcing single dimension array for now
+          pack_and_write(array_io, [VARCHAR_TYPE_OID], PACKED_UINT_32)
+          pack_and_write(array_io, [field.size], PACKED_UINT_32)
+          pack_and_write(array_io, [1], PACKED_UINT_32) # forcing single dimension array for now
 
           field.each do |val|
-            buf = val.to_s.encode(UTF_8_ENCODING)
-            write_field(array_io, buf)
+            write_with_bufsize(array_io, val.to_s.encode(UTF_8_ENCODING))
           end
         end
       when Integer
-        array_io.write([1].pack(PACKED_UINT_32)) # unknown
-        array_io.write([0].pack(PACKED_UINT_32)) # unknown
+        pack_and_write(array_io, [1], PACKED_UINT_32) # unknown
+        pack_and_write(array_io, [0], PACKED_UINT_32) # unknown
 
-        array_io.write([INT_TYPE_OID].pack(PACKED_UINT_32))
-        array_io.write([field.size].pack(PACKED_UINT_32))
-        array_io.write([1].pack(PACKED_UINT_32)) # forcing single dimension array for now
+        pack_and_write(array_io, [INT_TYPE_OID], PACKED_UINT_32)
+        pack_and_write(array_io, [field.size], PACKED_UINT_32)
+        pack_and_write(array_io, [1], PACKED_UINT_32) # forcing single dimension array for now
 
         field.each do |val|
-          buf = [val.to_i].pack(PACKED_UINT_32)
-          write_field(array_io, buf)
+          pack_and_write_with_bufsize(array_io, [val.to_i], PACKED_UINT_32)
         end
       when nil
-        io.write([-1].pack(PACKED_UINT_32))
-        completed = true
+        # TODO: Do we need to handle mixed nil and not-nil arrays?
+        pack_and_write(io, [-1], PACKED_UINT_32)
+        return
       else
         raise Exception, 'Arrays support int or string only'
       end
 
-      unless completed
-        io.write([array_io.pos].pack(PACKED_UINT_32))
-        io.write(array_io.string)
-      end
+      write_with_bufsize(io, array_io.string)
     end
 
     def encode_ip_addr(io, ip_addr)
       if ip_addr.ipv6?
-        io.write([4 + 16].pack(PACKED_UINT_32)) # Field data size
-        io.write([3].pack(PACKED_UINT_8)) # Family (PGSQL_AF_INET6)
-        io.write([128].pack(PACKED_UINT_8)) # Bits
-        io.write([0].pack(PACKED_UINT_8)) # Is CIDR? => No
-        io.write([16].pack(PACKED_UINT_8)) # Address length in bytes
+        pack_and_write(io, [4 + 16], PACKED_UINT_32) # Field data size
+        pack_and_write(io, [3], PACKED_UINT_8) # Family (PGSQL_AF_INET6)
+        pack_and_write(io, [128], PACKED_UINT_8) # Bits
+        pack_and_write(io, [0], PACKED_UINT_8) # Is CIDR? => No
+        pack_and_write(io, [16], PACKED_UINT_8) # Address length in bytes
       else
-        io.write([4 + 4].pack(PACKED_UINT_32)) # Field data size
-        io.write([2].pack(PACKED_UINT_8)) # Family (PGSQL_AF_INET)
-        io.write([32].pack(PACKED_UINT_8)) # Bits
-        io.write([0].pack(PACKED_UINT_8)) # Is CIDR? => No
-        io.write([4].pack(PACKED_UINT_8)) # Address length in bytes
+        pack_and_write(io, [4 + 4], PACKED_UINT_32) # Field data size
+        pack_and_write(io, [2], PACKED_UINT_8) # Family (PGSQL_AF_INET)
+        pack_and_write(io, [32], PACKED_UINT_8) # Bits
+        pack_and_write(io, [0], PACKED_UINT_8) # Is CIDR? => No
+        pack_and_write(io, [4], PACKED_UINT_8) # Address length in bytes
       end
-      io.write(ip_addr.hton)
+      write(io, ip_addr.hton)
     end
 
     # From the Postgres source:
@@ -298,23 +309,21 @@ module ActiveRecordCopy
       flags |= RANGE_UB_INC unless range.exclude_end?
       flags |= RANGE_LB_INF if range.begin.respond_to?(:infinite?) && range.begin.infinite?
       flags |= RANGE_UB_INF if range.end.respond_to?(:infinite?) && range.end.infinite?
-      tmp_io = IntermediateBuffer.new
-      tmp_io.write([flags].pack(PACKED_UINT_8))
+      tmp_io = TempBuffer.new
+      pack_and_write(tmp_io, [flags], PACKED_UINT_8)
       if range.begin && (!range.begin.respond_to?(:infinite?) || !range.begin.infinite?)
         write_simple_field(tmp_io, range.begin, field_data_type)
       end
       if range.end && (!range.end.respond_to?(:infinite?) || !range.end.infinite?)
         write_simple_field(tmp_io, range.end, field_data_type)
       end
-      io.write([tmp_io.size].pack(PACKED_UINT_32))
-      io.write(tmp_io.bytes)
+      write_with_bufsize(io, tmp_io.read)
     end
 
+    JSONB_FORMAT_VERSION = 1
     def encode_jsonb(io, field)
-      buf = field.to_json.encode(UTF_8_ENCODING)
-      io.write([1 + buf.bytesize].pack(PACKED_UINT_32))
-      io.write([1].pack(PACKED_UINT_8)) # JSONB format version 1
-      io.write(buf)
+      buf = [JSONB_FORMAT_VERSION].pack(PACKED_UINT_8) + field.encode(UTF_8_ENCODING)
+      write_with_bufsize(io, buf)
     end
 
     NUMERIC_NBASE = 10000
@@ -346,13 +355,13 @@ module ActiveRecordCopy
       weight = digits_before_decpoint.size - 1
       digits = digits_before_decpoint + digits_after_decpoint
 
-      io.write([2 * 4 + 2 * digits.size].pack(PACKED_UINT_32)) # Field data size
-      io.write([digits.size].pack(PACKED_UINT_16)) # ndigits
-      io.write([weight].pack(PACKED_UINT_16)) # weight
-      io.write([sign].pack(PACKED_UINT_16)) # sign
-      io.write([dscale].pack(PACKED_UINT_16)) # dscale
+      pack_and_write(io, [2 * 4 + 2 * digits.size], PACKED_UINT_32) # Field data size
+      pack_and_write(io, [digits.size], PACKED_UINT_16) # ndigits
+      pack_and_write(io, [weight], PACKED_UINT_16) # weight
+      pack_and_write(io, [sign], PACKED_UINT_16) # sign
+      pack_and_write(io, [dscale], PACKED_UINT_16) # dscale
 
-      digits.each { |d| io.write([d].pack(PACKED_UINT_16)) } # NumericDigits
+      digits.each { |d| pack_and_write(io, [d], PACKED_UINT_16) } # NumericDigits
     end
   end
 end
