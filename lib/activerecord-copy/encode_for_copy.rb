@@ -154,7 +154,8 @@ module ActiveRecordCopy
       when :binary
         write_with_bufsize(io, field)
       when :json
-        write_with_bufsize(io, field.to_json.encode(UTF_8_ENCODING))
+        field = field.to_json unless field.is_a?(String)
+        write_with_bufsize(io, field.encode(UTF_8_ENCODING))
       when :jsonb
         encode_jsonb(io, field)
       when :int4range, :int8range, :numrange, :tsrange, :tstzrange, :daterange
@@ -322,6 +323,7 @@ module ActiveRecordCopy
 
     JSONB_FORMAT_VERSION = 1
     def encode_jsonb(io, field)
+      field = field.to_json unless field.is_a?(String)
       buf = [JSONB_FORMAT_VERSION].pack(PACKED_UINT_8) + field.encode(UTF_8_ENCODING)
       write_with_bufsize(io, buf)
     end
