@@ -117,10 +117,10 @@ describe 'parsing data' do
     expect(r).to eq [%w(asdfasdfasdfasdf asdfasdfasdfasdfadsfadf)]
   end
 
-  it 'encodes array data from tempfile correctly', pending: 'broken right now' do
+  it 'encodes array data from tempfile correctly' do
     decoder = ActiveRecordCopy::Decoder.new(
       io: fileio('3_column_array.dat'),
-      column_types: { 0 => :array }
+      column_types: { 0 => :integer, 1 => :string, 2 => :array }
     )
     r = decoder.read_line
     expect(r).to eq [1, 'hi', ['hi', 'there', 'rubyist']]

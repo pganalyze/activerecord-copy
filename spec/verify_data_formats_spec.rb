@@ -116,7 +116,7 @@ describe 'generating data' do
     expect(str).to eq existing_data
   end
 
-  it 'encodes array data from tempfile correctly', pending: 'broken right now' do
+  it 'encodes array data from tempfile correctly' do
     encoder = ActiveRecordCopy::EncodeForCopy.new(use_tempfile: true)
     encoder.add [1, 'hi', ['hi', 'there', 'rubyist']]
     encoder.close
