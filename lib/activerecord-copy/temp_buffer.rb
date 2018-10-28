@@ -1,7 +1,7 @@
 module ActiveRecordCopy
   class TempBuffer
     def initialize
-      @st = ''.force_encoding(ASCII_8BIT_ENCODING)
+      @st = String.new.force_encoding(ASCII_8BIT_ENCODING)
     end
 
     def size
@@ -9,14 +9,14 @@ module ActiveRecordCopy
     end
 
     def write(st)
-      @st << st.dup.force_encoding(ASCII_8BIT_ENCODING)
+      @st << st.force_encoding(ASCII_8BIT_ENCODING)
     end
 
     def rewind
     end
 
     def reopen
-      @st = ''
+      @st = ''.force_encoding(ASCII_8BIT_ENCODING)
     end
 
     def read
