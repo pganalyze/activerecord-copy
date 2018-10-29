@@ -169,9 +169,13 @@ module ActiveRecordCopy
       when :inet
         encode_ip_addr(io, IPAddr.new(field))
       when :binary
-        write_with_bufsize(io, field)
+        write_with_bufsize(io, field.dup)
       when :json
-        field = field.to_json unless field.is_a?(String)
+        field = if field.is_a?(String)
+                  field.dup
+                else
+                  field.to_json
+                end
         write_with_bufsize(io, field.encode(UTF_8_ENCODING))
       when :jsonb
         encode_jsonb(io, field)
@@ -340,7 +344,11 @@ module ActiveRecordCopy
 
     JSONB_FORMAT_VERSION = 1
     def encode_jsonb(io, field)
-      field = field.to_json unless field.is_a?(String)
+      field = if field.is_a?(String)
+                field.dup
+              else
+                field.to_json
+              end
       buf = [JSONB_FORMAT_VERSION].pack(PACKED_UINT_8) + field.encode(UTF_8_ENCODING)
       write_with_bufsize(io, buf)
     end
