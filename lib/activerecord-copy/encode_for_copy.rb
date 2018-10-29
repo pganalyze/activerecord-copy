@@ -51,6 +51,23 @@ module ActiveRecordCopy
       @io
     end
 
+    def get_intermediate_io
+      unless @buffer.empty?
+        write(@io, @buffer.read)
+        @buffer.reopen
+      end
+      @io.rewind
+      buf = @io.read
+      if @options[:use_tempfile] == true
+        remove
+        @io = Tempfile.new('copy_binary', encoding: ASCII_8BIT_ENCODING)
+        @io.unlink unless @options[:skip_unlink] == true
+      else
+        @io = StringIO.new
+      end
+      buf
+    end
+
     def remove
       return unless @io.is_a?(Tempfile)
 
