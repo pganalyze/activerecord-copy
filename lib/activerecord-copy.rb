@@ -41,6 +41,7 @@ module ActiveRecordCopy
       end
 
       def <<(row)
+        start_copy_if_needed
         @encoder.add row
         unless @send_at_once
           @connection.put_copy_data(@encoder.get_intermediate_io)
@@ -56,16 +57,32 @@ module ActiveRecordCopy
           return
         end
 
-        @connection.copy_data(copy_sql) do
-          begin
-            yield(self)
+        begin
+          yield(self)
+        rescue Exception => err
+          if @copy_initialized
+            errmsg = format('%s while copy data: %s', err.class.name, err.message)
+            @connection.put_copy_end(errmsg)
+            @connection.get_result
+          end
+          raise
+        else
+          if @copy_initialized
             @encoder.remove # writes the end marker
-          rescue EOFError # rubocop:disable Lint/HandleExceptions
+            @connection.put_copy_end
+            @connection.get_last_result
           end
         end
       end
 
       private
+
+      def start_copy_if_needed
+        return if @copy_initialized || @send_at_once
+
+        @connection.exec(copy_sql)
+        @copy_initialized = true
+      end
 
       def copy_sql
         %{COPY #{@table_name}("#{@columns.join('","')}") FROM STDIN BINARY}
@@ -90,6 +107,7 @@ module ActiveRecordCopy
 
       def reset
         @encoder = ActiveRecordCopy::EncodeForCopy.new column_types: @column_types
+        @copy_initialized = false
       end
     end
 
