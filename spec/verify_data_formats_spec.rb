@@ -92,6 +92,18 @@ describe 'generating data' do
     expect(str).to eq existing_data
   end
 
+  it 'encodes text array data correctly' do
+    encoder = ActiveRecordCopy::EncodeForCopy.new column_types: { 0 => :text }
+    encoder.add [['a']]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata('text_array.dat')
+    str = io.read
+    expect(io.class.name).to eq 'StringIO'
+    str.force_encoding('ASCII-8BIT')
+    expect(str).to eq existing_data
+  end
+
   it 'encodes string array with big string int' do
     encoder = ActiveRecordCopy::EncodeForCopy.new
     encoder.add [['182749082739172']]

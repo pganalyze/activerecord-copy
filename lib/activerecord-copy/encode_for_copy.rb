@@ -253,7 +253,8 @@ module ActiveRecordCopy
           pack_and_write(array_io, [1], PACKED_UINT_32) # unknown
           pack_and_write(array_io, [0], PACKED_UINT_32) # unknown
 
-          pack_and_write(array_io, [VARCHAR_TYPE_OID], PACKED_UINT_32)
+          type_oid = @column_types[index] == :text ? TEXT_TYPE_OID : VARCHAR_TYPE_OID
+          pack_and_write(array_io, [type_oid], PACKED_UINT_32)
           pack_and_write(array_io, [field.size], PACKED_UINT_32)
           pack_and_write(array_io, [1], PACKED_UINT_32) # forcing single dimension array for now
 
