@@ -347,6 +347,19 @@ describe 'generating data' do
     expect(str).to eq existing_data
   end
 
+  it 'encodes real data correctly' do
+    encoder = ActiveRecordCopy::EncodeForCopy.new column_types: { 0 => :real }
+    encoder.add [1_234.1234]
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata('real.dat')
+    str = io.read
+    expect(io.class.name).to eq 'StringIO'
+    str.force_encoding('ASCII-8BIT')
+    # File.open('spec/fixtures/output.dat', 'w:ASCII-8BIT') {|out| out.write(str) }
+    expect(str).to eq existing_data
+  end
+
   it 'encodes uuid correctly from tempfile' do
     encoder = ActiveRecordCopy::EncodeForCopy.new(use_tempfile: true, column_types: { 0 => :uuid })
     encoder.add ['e876eef5-a116-4a27-b71f-bac4a1dcd20e']

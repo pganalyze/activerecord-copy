@@ -135,6 +135,8 @@ module ActiveRecordCopy
         pack_and_write_with_bufsize(io, [field.to_i], PACKED_UINT_16)
       when :numeric
         encode_numeric(io, field)
+      when :real
+        pack_and_write_with_bufsize(io, [field], PACKED_FLOAT_32)
       when :float
         pack_and_write_with_bufsize(io, [field], PACKED_FLOAT_64)
       when :timestamp, :timestamptz
@@ -162,7 +164,7 @@ module ActiveRecordCopy
       end
 
       case @column_types[index]
-      when :bigint, :integer, :smallint, :numeric, :float
+      when :bigint, :integer, :smallint, :numeric, :float, :real
         write_simple_field(io, field, @column_types[index])
       when :uuid
         pack_and_write_with_bufsize(io, [field.delete('-')], PACKED_HEX_STRING)

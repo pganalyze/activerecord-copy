@@ -3,6 +3,7 @@ module ActiveRecordCopy
   PACKED_UINT_16 = 'n'.freeze # 16-bit unsigned, network (big-endian) byte order
   PACKED_UINT_32 = 'N'.freeze # 32-bit unsigned, network (big-endian) byte order
   PACKED_UINT_64 = 'Q>'.freeze # 64-bit unsigned, big endian
+  PACKED_FLOAT_32 = 'g'.freeze # single-precision, network (big-endian) byte order
   PACKED_FLOAT_64 = 'G'.freeze # double-precision, network (big-endian) byte order
   PACKED_HEX_STRING = 'H*'.freeze # hex string (high nibble first)
 
