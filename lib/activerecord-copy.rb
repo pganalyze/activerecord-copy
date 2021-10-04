@@ -34,6 +34,8 @@ module ActiveRecordCopy
             else
               :integer
             end
+          elsif column.sql_type == 'real'
+            :real
           else
             column.type
           end
