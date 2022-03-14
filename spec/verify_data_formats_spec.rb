@@ -460,4 +460,19 @@ describe 'generating data' do
     #File.open('spec/fixtures/output.dat', 'w:ASCII-8BIT') {|out| out.write(str) }
     expect(str).to eq existing_data
   end
+
+  it 'encodes geometry correctly' do
+    factory = RGeo::Geographic.simple_mercator_factory()
+    point = factory.point(0, 0)
+    encoder = ActiveRecordCopy::EncodeForCopy.new(column_types: { 0 => :geometry })
+    encoder.add([point])
+    encoder.close
+    io = encoder.get_io
+    existing_data = filedata('geometry_test.dat')
+    str = io.read
+    expect(io.class.name).to eq 'StringIO'
+    str.force_encoding('ASCII-8BIT')
+    # File.open('spec/fixtures/geometry_test.dat', 'w:ASCII-8BIT') {|out| out.write(str) }
+    expect(str).to eq existing_data
+  end
 end

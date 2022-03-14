@@ -183,6 +183,8 @@ module ActiveRecordCopy
         encode_jsonb(io, field)
       when :int4range, :int8range, :numrange, :tsrange, :tstzrange, :daterange
         encode_range(io, field, @column_types[index])
+      when :geometry, :geography
+        write_with_bufsize(io, field.as_binary)
       else
         encode_based_on_input(io, field, index, depth)
       end

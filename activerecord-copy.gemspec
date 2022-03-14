@@ -22,4 +22,5 @@ Gem::Specification.new do |gem|
 
   gem.add_development_dependency('rspec', '>= 2.12.0')
   gem.add_development_dependency('rspec-core', '>= 2.12.0')
+  gem.add_development_dependency('rgeo', '>= 2.4.0')
 end
