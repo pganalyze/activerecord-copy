@@ -19,8 +19,14 @@ Gem::Specification.new do |gem|
   gem.require_paths = ['lib']
 
   gem.add_dependency('activerecord', '>= 3.1')
+  gem.add_dependency('pg', '>= 1.3.0')
 
   gem.add_development_dependency('rspec', '>= 2.12.0')
   gem.add_development_dependency('rspec-core', '>= 2.12.0')
+  gem.add_development_dependency('rspec-rails')
+
+  gem.add_development_dependency('rails', '>= 6.1.4.4')
+  gem.add_development_dependency('activerecord-postgis-adapter', '~> 7.1')
+  gem.add_development_dependency('dotenv-rails', '>= 2.7.6')
   gem.add_development_dependency('rgeo', '>= 2.4.0')
 end

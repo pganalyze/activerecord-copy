@@ -3,90 +3,52 @@
 require 'tempfile'
 require 'stringio'
 require 'ipaddr'
+require 'active_record'
+require_relative 'mac_address'
 
 module ActiveRecordCopy
+
+  class ConnectionWriter
+    def initialize(connection)
+      @connection = connection
+    end
+
+    def flush
+      @connection.flush
+    end
+
+    def write(buf)
+      @connection.sync_put_copy_data(buf)
+    end
+  end
+
   class EncodeForCopy
-    def initialize(options = {})
-      @options = options
-      @closed = false
-      @column_types = @options[:column_types] || {}
-      @io = nil
-      @buffer = TempBuffer.new
-      @row_size_encoded = nil
+    def initialize(column_types:, connection:)
+      @column_types = column_types
+      @row_size_encoded = [column_types.size].pack(PACKED_UINT_16)
+      @io = ConnectionWriter.new(connection)
+    end
+
+    def process(&_block)
+      write(@io, "PGCOPY\n\377\r\n\0")
+      pack_and_write(@io, [0, 0], PACKED_UINT_32 + PACKED_UINT_32)
+      yield self
+      @io.flush
+    end
+
+    def <<(row)
+      self.add(row)
     end
 
     def add(row)
       fail ArgumentError.new('Empty row added') if row.empty?
-
-      setup_io unless @io
-
-      # Row size needs to be the same across all rows, so its safe to cache this
-      @row_size_encoded ||= [row.size].pack(PACKED_UINT_16)
       write(@io, @row_size_encoded)
-
       row.each_with_index do |col, index|
-        encode_field(@buffer, col, index)
+        encode_field(@io, col, index)
       end
-
-      write(@io, @buffer.read)
-
-      @buffer.reopen
-    end
-
-    ROW_END_MARKER = [-1].pack(PACKED_UINT_16)
-    def close
-      raise(Exception, 'No rows have been added to the encoder!') if @io.nil?
-
-      @closed = true
-      unless @buffer.empty?
-        write(@io, @buffer.read)
-        @buffer.reopen
-      end
-      write(@io, ROW_END_MARKER)
-      @io.rewind
-    end
-
-    def get_io
-      close unless @closed
-      @io
-    end
-
-    def get_intermediate_io
-      unless @buffer.empty?
-        write(@io, @buffer.read)
-        @buffer.reopen
-      end
-      @io.rewind
-      buf = @io.read
-      if @options[:use_tempfile] == true
-        remove
-        @io = Tempfile.new('copy_binary', encoding: ASCII_8BIT_ENCODING)
-        @io.unlink unless @options[:skip_unlink] == true
-      else
-        @io = StringIO.new
-      end
-      buf
-    end
-
-    def remove
-      return unless @io.is_a?(Tempfile)
-
-      @io.close
-      @io.unlink
     end
 
     private
-
-    def setup_io
-      if @options[:use_tempfile] == true
-        @io = Tempfile.new('copy_binary', encoding: ASCII_8BIT_ENCODING)
-        @io.unlink unless @options[:skip_unlink] == true
-      else
-        @io = StringIO.new
-      end
-      write(@io, "PGCOPY\n\377\r\n\0")
-      pack_and_write(@io, [0, 0], PACKED_UINT_32 + PACKED_UINT_32)
-    end
 
     def pack_and_write(io, data, pack_format)
       if io.is_a?(String)
@@ -110,6 +72,7 @@ module ActiveRecordCopy
     BUFSIZE_4 = [4].pack(PACKED_UINT_32)
     BUFSIZE_8 = [8].pack(PACKED_UINT_32)
     BUFSIZE_16 = [16].pack(PACKED_UINT_32)
+
     def write_with_bufsize(io, buf)
       case buf.bytesize
       when 4
@@ -133,17 +96,20 @@ module ActiveRecordCopy
         pack_and_write_with_bufsize(io, [field.to_i], PACKED_UINT_32)
       when :smallint
         pack_and_write_with_bufsize(io, [field.to_i], PACKED_UINT_16)
-      when :numeric
+      when :numeric, :decimal
         encode_numeric(io, field)
       when :real
         pack_and_write_with_bufsize(io, [field], PACKED_FLOAT_32)
       when :float
         pack_and_write_with_bufsize(io, [field], PACKED_FLOAT_64)
+      when :time
+        data = (field - field.beginning_of_day)
+        pack_and_write_with_bufsize(io, [data.to_i * 1000000], PACKED_UINT_64)
       when :timestamp, :timestamptz
         data = field.tv_sec * 1_000_000 + field.tv_usec - POSTGRES_EPOCH_TIME
         pack_and_write_with_bufsize(io, [data.to_i], PACKED_UINT_64)
       when :date
-        data = field - Date.new(2000, 1, 1)
+        data = field.to_date - Date.new(2000, 1, 1)
         pack_and_write_with_bufsize(io, [data.to_i], PACKED_UINT_32)
       else
         raise Exception, "Unsupported simple type: #{type}"
@@ -151,6 +117,7 @@ module ActiveRecordCopy
     end
 
     NIL_FIELD = [-1].pack(PACKED_UINT_32)
+
     def encode_field(io, field, index, depth = 0)
       # Nil is an exception in that any kind of field type can have a nil value transmitted
       if field.nil?
@@ -164,12 +131,17 @@ module ActiveRecordCopy
       end
 
       case @column_types[index]
-      when :bigint, :integer, :smallint, :numeric, :float, :real
+      when :bigint, :integer, :smallint, :numeric, :float, :real, :decimal, :date, :time
         write_simple_field(io, field, @column_types[index])
       when :uuid
         pack_and_write_with_bufsize(io, [field.delete('-')], PACKED_HEX_STRING)
-      when :inet
-        encode_ip_addr(io, IPAddr.new(field))
+      when :inet, :cidr
+        if String === field
+          field = IPAddr.new(field)
+        end
+        encode_ip_addr(io, field)
+      when :macaddr
+        write_with_bufsize(io, MacAddress.new(field).to_bytes)
       when :binary
         write_with_bufsize(io, field.dup)
       when :json
@@ -372,7 +344,7 @@ module ActiveRecordCopy
 
     NUMERIC_DEC_DIGITS = 4
     def encode_numeric(io, field)
-      float_str = field.to_s
+      float_str = field.abs.to_s
       digits_base10 = float_str.scan(/\d/).map(&:to_i)
       weight_base10 = float_str.index('.')
       sign          = field < 0.0 ? 0x4000 : 0
