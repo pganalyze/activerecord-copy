@@ -17,13 +17,14 @@ module ActiveRecordCopy
         table_name ||= quoted_table_name
         connection = self.connection.raw_connection
         column_types = columns.map do |c|
-          column = self.columns_hash[c.to_s]
+          column = columns_hash[c.to_s]
           raise format('Could not find column %s on %s', c, self.table_name) if column.nil?
+
           ColumnHelper.find_column_type(column)
         end
         sql = %{COPY #{table_name}("#{columns.join('","')}") FROM STDIN BINARY}
         encoder = ActiveRecordCopy::EncodeForCopy.new(column_types: column_types, connection: connection)
-        connection.copy_data(sql)  do
+        connection.copy_data(sql) do
           encoder.process(&block)
         end
       end
@@ -31,4 +32,4 @@ module ActiveRecordCopy
   end
 end
 
-ActiveRecord::Base.send(:include, ActiveRecordCopy::CopyFromClient)
+ActiveRecord::Base.include ActiveRecordCopy::CopyFromClient

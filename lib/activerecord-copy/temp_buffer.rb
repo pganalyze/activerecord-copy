@@ -12,8 +12,7 @@ module ActiveRecordCopy
       @st << st.force_encoding(ASCII_8BIT_ENCODING)
     end
 
-    def rewind
-    end
+    def rewind; end
 
     def reopen
       @st = ''.force_encoding(ASCII_8BIT_ENCODING)

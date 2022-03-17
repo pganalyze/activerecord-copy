@@ -2,14 +2,13 @@ module ActiveRecordCopy
   class MacAddress
     def initialize(str)
       str = str.strip
-      if !self.class.validate_strict(str)
-        raise ArgumentError.new("Invalid MAC address: #{str}")
-      end
+      raise ArgumentError, "Invalid MAC address: #{str}" unless self.class.validate_strict(str)
+
       @bytes = str.split(/[-,:]/).map { |s| s.to_i(16) }
     end
 
     def to_s
-      @bytes.map { |h| h.hex }.join(":")
+      @bytes.map(&:hex).join(':')
     end
 
     def to_bytes

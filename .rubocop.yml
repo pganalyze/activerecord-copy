@@ -1,40 +1,45 @@
+inherit_from: .rubocop_todo.yml
+
 require: rubocop-rspec
 
 AllCops:
-  TargetRubyVersion: 2.3
+  NewCops: enable
+  TargetRubyVersion: 2.5
+  Exclude:
+    - 'spec/dummy/**/*'
 
-LineLength:
+RSpec/ExampleLength:
+  Max: 200
+
+Metrics/MethodLength:
+  Max: 60
+
+Metrics/BlockLength:
+  Max: 200
+
+RSpec/FilePath:
   Enabled: false
 
-FrozenStringLiteralComment:
+RSpec/MultipleExpectations:
+  Max: 50
+
+Metrics/PerceivedComplexity:
+  Max: 15
+
+Metrics/ClassLength:
+  Max: 300
+
+Metrics/AbcSize:
   Enabled: false
 
-ClassLength:
+Metrics/CyclomaticComplexity:
   Enabled: false
 
-RescueModifier:
+Style/Documentation:
   Enabled: false
 
-AccessorMethodName:
+Naming/FileName:
   Enabled: false
 
-Documentation:
-  Enabled: false
-
-AbcSize:
-  Enabled: false
-
-CyclomaticComplexity:
-  Enabled: false
-
-PerceivedComplexity:
-  Enabled: false
-
-MethodLength:
-  Enabled: false
-
-BlockNesting:
-  Enabled: false
-
-RSpec/DescribeClass:
+Style/FrozenStringLiteralComment:
   Enabled: false

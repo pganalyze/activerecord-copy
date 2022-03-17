@@ -2,9 +2,10 @@ module ActiveRecordCopy
   class ColumnHelper
     def self.find_column_type(column)
       if column.type == :integer
-        if column.limit == 8
+        case column.limit
+        when 8
           :bigint
-        elsif column.limit == 2
+        when 2
           :smallint
         else
           :integer

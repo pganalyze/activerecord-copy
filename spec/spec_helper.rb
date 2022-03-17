@@ -7,12 +7,7 @@ Dotenv.load
 require 'rspec'
 require 'activerecord-copy'
 require 'rgeo'
-require "base64"
-
-RSpec.configure do |config|
-  config.before(:suite) do
-  end
-end
+require 'base64'
 
 class MockConnection
   def initialize
@@ -24,8 +19,7 @@ class MockConnection
     @io.write(buf)
   end
 
-  def flush
-  end
+  def flush; end
 
   def base64
     Base64.strict_encode64(@io.string)
