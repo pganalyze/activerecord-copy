@@ -9,13 +9,12 @@ describe 'generating data' do
   }
 
   it 'encodes text array data correctly' do
-    encoder = ActiveRecordCopy::EncodeForCopy.new column_types: { 0 => :text }, connection: connection
+    encoder = ActiveRecordCopy::EncodeForCopy.new(column_types: { 0 => :text }, connection: connection)
     encoder.process do
       encoder.add [['a']]
     end
-    existing_data = read_file('text_array.dat')
-    str = connection.string
-    expect(str).to eq existing_data
+    str = connection.base64
+    expect(str).to eq "UEdDT1BZCv8NCgAAAAAAAAAAAAABAAAAGQAAAAEAAAAAAAAAGQAAAAEAAAABAAAAAWE="
   end
 
   it 'encodes json hash correctly' do
@@ -23,10 +22,9 @@ describe 'generating data' do
     encoder.process do
       encoder.add [{}]
     end
-    existing_data = read_file('json.dat')
-    str = connection.string
-    # open_file('json.dat') {|out| out.write(str) }
-    expect(str).to eq existing_data
+    str = connection.base64
+    puts str
+    expect(str).to eq "UEdDT1BZCv8NCgAAAAAAAAAAAAABAAAAAnt9"
   end
 
   it 'encodes json array correctly' do
@@ -34,21 +32,18 @@ describe 'generating data' do
     encoder.process do
       encoder.add [[]]
     end
-    existing_data = read_file('json_array.dat')
-    str = connection.string
-    # File.open('spec/fixtures/json_array.dat', 'w:ASCII-8BIT') {|out| out.write(str) }
-    expect(str).to eq existing_data
+    str = connection.base64
+    expect(str).to eq  "UEdDT1BZCv8NCgAAAAAAAAAAAAABAAAAAltd"
   end
 
   it 'encodes real data correctly' do
-    encoder = ActiveRecordCopy::EncodeForCopy.new column_types: { 0 => :real }, connection: connection
+    encoder = ActiveRecordCopy::EncodeForCopy.new(column_types: { 0 => :real }, connection: connection)
     encoder.process do
       encoder.add [1_234.1234]
+      encoder.add [-1_234.1234]
     end
-    existing_data = read_file('real.dat')
-    str = connection.string
-    # File.open('spec/fixtures/real.dat', 'w:ASCII-8BIT') {|out| out.write(str) }
-    expect(str).to eq existing_data
+    str = connection.base64
+    expect(str).to eq "UEdDT1BZCv8NCgAAAAAAAAAAAAABAAAABESaQ/MAAQAAAATEmkPz"
   end
 
   # CREATE TABLE test(i4r int4range, i8r int8range, nr numrange, tr tsrange, tzr tstzrange, dr daterange);
@@ -68,23 +63,30 @@ describe 'generating data' do
         ]
       )
     end
-    existing_data = read_file('range_test.dat')
-    str = connection.string
-    # File.open('spec/fixtures/range_test.dat', 'w:ASCII-8BIT') {|out| out.write(str) }
-    expect(str).to eq existing_data
+    str = connection.base64
+    puts str
+    expect(str).to eq "UEdDT1BZCv8NCgAAAAAAAAAAAAAGAAAAEQIAAAAEAAAADAAAAAQAAAAOAAAAGQIAAAAIAxmTrmqrofoAAAAIAxmTrmqrogIAAAAjBgAAAAwAAgAAAAAAAQAME4gAAAAOAAMAAAAAAAUADSJ1A+gAAAAZAgAAAAgAAR8arHoIAAAAAAgAAR8a0D1OAAAAAA0SAAAACAACD+cZ6UAAAAAACRIAAAAEAAAaPg=="
   end
 
   it 'encodes geometry correctly' do
     factory = RGeo::Geographic.simple_mercator_factory()
-    point = factory.point(0, 0)
+    point = factory.point(1, 5)
     encoder = ActiveRecordCopy::EncodeForCopy.new(column_types: { 0 => :geometry }, connection: connection)
     encoder.process do
       encoder.add([point])
     end
+    str = connection.base64
+    expect(str).to eq "UEdDT1BZCv8NCgAAAAAAAAAAAAABAAAAFQAAAAABP/AAAAAAAABAFAAAAAAAAA=="
+  end
 
-    existing_data = read_file('geometry_test.dat')
-    str = connection.string
-    # File.open('spec/fixtures/geometry_test.dat', 'w:ASCII-8BIT') {|out| out.write(str) }
-    expect(str).to eq existing_data
+  it 'encodes multiline hstore data correctly' do
+    encoder = ActiveRecordCopy::EncodeForCopy.new(column_types: {0 => nil, 1 => nil}, connection: connection)
+    encoder.process do
+      encoder.add [1, { a: 1, b: 2 }]
+      encoder.add [2, { a: 1, b: 3 }]
+    end
+
+    str = connection.base64
+    expect(str).to eq "UEdDT1BZCv8NCgAAAAAAAAAAAAACAAAABAAAAAEAAAAYAAAAAgAAAAFhAAAAATEAAAABYgAAAAEyAAIAAAAEAAAAAgAAABgAAAACAAAAAWEAAAABMQAAAAFiAAAAATM="
   end
 end

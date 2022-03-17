@@ -7,20 +7,12 @@ Dotenv.load
 require 'rspec'
 require 'activerecord-copy'
 require 'rgeo'
+require "base64"
 
 RSpec.configure do |config|
   config.before(:suite) do
   end
 end
-
-def read_file(filename)
-  File.open("spec/fixtures/#{filename}", 'r:ASCII-8BIT').read
-end
-
-def open_file(filename)
-  File.open("spec/fixtures/#{filename}", 'r:ASCII-8BIT')
-end
-
 
 class MockConnection
   def initialize
@@ -35,7 +27,7 @@ class MockConnection
   def flush
   end
 
-  def string
-    @io.string
+  def base64
+    Base64.strict_encode64(@io.string)
   end
 end
