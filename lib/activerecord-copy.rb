@@ -24,8 +24,11 @@ module ActiveRecordCopy
         end
         sql = %{COPY #{table_name}("#{columns.join('","')}") FROM STDIN BINARY}
         encoder = ActiveRecordCopy::EncodeForCopy.new(column_types: column_types, connection: connection)
-        connection.copy_data(sql) do
-          encoder.process(&block)
+        ActiveRecord::Base.transaction do
+          ActiveRecord::Base.connection.execute("LOCK  #{table_name} IN ACCESS EXCLUSIVE MODE")
+          connection.copy_data(sql) do
+            encoder.process(&block)
+          end
         end
       end
     end
